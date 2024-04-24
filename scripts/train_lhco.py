@@ -8,7 +8,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint,ReduceLROnPlateau,EarlySt
 import sys
 import horovod.tensorflow.keras as hvd
 
-from FPCD_lhco import FPCD
+from PET_lhco import PET_lhco
 import utils
 import pickle
 

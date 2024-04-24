@@ -110,7 +110,7 @@ def main():
             model.load_weights(model_path,by_name=True,skip_mismatch=True)
 
     optimizer_head = configure_optimizers(flags, train_loader)
-    optimizer_body = configure_optimizers(flags, train_loader,lr_factor=flags.lr_factor)
+    optimizer_body = configure_optimizers(flags, train_loader,lr_factor=flags.lr_factor if flags.fine_tune else 1.0)
     model.compile(optimizer_body,optimizer_head)
 
 
