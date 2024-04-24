@@ -10,9 +10,7 @@ import itertools
 import pickle, copy
 from scipy.stats import norm
 
-def get_model_name(flags,fine_tune=False,add_string=None):
-    if add_string is None:
-        add_string=""
+def get_model_name(flags,fine_tune=False,add_string=""):
     model_name = 'PET_{}_{}_{}_{}_{}_{}_{}{}.weights.h5'.format(
         flags.dataset,
         flags.num_layers,
@@ -31,23 +29,24 @@ def load_pickle(folder,f):
         history_dict = pickle.load(file_pi)
     return history_dict
 
-def revert_npart(npart,name='30'):
-    #Revert the preprocessing to recover the particle multiplicity
-    if name == '30':
-        mean =  2.9036360e+01
-        std = 2.7629626
-    elif name == '150':
-        mean = 4.9398304e+01
-        std = 20.772636
-    elif name == '279':
-        mean = 5.72867500e+01
-        std = 29.41252836 
-    return np.round(npart*std + mean).astype(np.int32)
+def revert_npart(npart, name='30'):
+    # Reverse the preprocessing to recover the particle multiplicity
+    stats = {'30': (29.03636, 2.7629626),
+             '150': (49.398304, 20.772636),
+             '279': (57.28675, 29.41252836)}
+    mean, std = stats[name]
+    return np.round(npart * std + mean).astype(np.int32)
 
 
-class DataLoader():
-    def __init__(self):
-        pass
+class DataLoader:
+    """Base class for all data loaders with common preprocessing methods."""
+    def __init__(self, path, batch_size=512, rank=0, size=1, **kwargs):
+
+        self.path = path
+        self.batch_size = batch_size
+        self.rank = rank
+        self.size = size
+
         self.mean_part = [0.0, 0.0, -0.0278,
                           1.8999407,-0.027,2.244736, 0.0,
                           0.0, 0.0,  0.0,  0.0,  0.0, 0.0]
@@ -63,7 +62,7 @@ class DataLoader():
         return np.pad(x, pad_width=((0, 0), (0, 0), (0, num_pad)),
                       mode='constant', constant_values=0)
 
-    def data_from_file(self,file_path):
+    def data_from_file(self,file_path, preprocess=False):
         with h5.File(file_path, 'r') as file:
             data_chunk = file['data'][:]
             mask_chunk = data_chunk[:, :, 2] != 0
@@ -71,9 +70,11 @@ class DataLoader():
             jet_chunk = file['jet'][:]
             label_chunk = file['pid'][:]
 
-            data_chunk = self.preprocess(data_chunk, mask_chunk)
-            data_chunk = self.pad(data_chunk,num_pad=self.num_pad)
-            jet_chunk = self.preprocess_jet(jet_chunk)
+            if preprocess:
+                data_chunk = self.preprocess(data_chunk, mask_chunk)
+                data_chunk = self.pad(data_chunk,num_pad=self.num_pad)
+                jet_chunk = self.preprocess_jet(jet_chunk)
+                
             points_chunk = data_chunk[:, :, :2]
             
         return [data_chunk,points_chunk,mask_chunk,jet_chunk],label_chunk
@@ -110,14 +111,14 @@ class DataLoader():
         return tf.data.Dataset.zip((tf_zip,tf_y)).cache().shuffle(self.batch_size*100).batch(self.batch_size).prefetch(tf.data.AUTOTUNE)
 
     def load_data(self,path, batch_size=512,rank=0,size=1):
-        self.path = path
+        # self.path = path
 
         self.X = h5.File(self.path,'r')['data'][rank::size]
         self.y = h5.File(self.path,'r')['pid'][rank::size]
         self.jet = h5.File(self.path,'r')['jet'][rank::size]
         self.mask = self.X[:,:,2]!=0
 
-        self.batch_size = batch_size
+        # self.batch_size = batch_size
         self.nevts = h5.File(self.path,'r')['data'].shape[0]
         self.num_part = self.X.shape[1]
         self.num_jet = self.jet.shape[1]
@@ -148,7 +149,7 @@ class DataLoader():
 
 class JetNetDataLoader(DataLoader):
     def __init__(self, path, batch_size=512,rank=0,size=1,big=False):
-        super(JetNetDataLoader, self).__init__()
+        super().__init__(path, batch_size, rank, size)
         if big:
             self.mean_part = [0.0, 0.0, -0.0217,
                               1.895,-0.022, 2.13, 0.0,
@@ -194,7 +195,7 @@ class LHCODataLoader(DataLoader):
     def __init__(self, path, batch_size=512,rank=0,size=1,
                  mjjmin=2300,
                  mjjmax=5000,nevts = -1):
-        super(LHCODataLoader, self).__init__()
+        super().__init__(path, batch_size, rank, size)
 
         self.mean_part = [0.0, 0.0, -0.019,
                           1.83,-0.019, 2.068, 0.0,
@@ -394,21 +395,9 @@ class LHCODataLoader(DataLoader):
 
 class TopDataLoader(DataLoader):    
     def __init__(self, path, batch_size=512,rank=0,size=1):
-        super(TopDataLoader, self).__init__()
-
+        super().__init__(path, batch_size, rank, size)
 
         self.load_data(path, batch_size,rank,size)
-        
-        # self.path = path
-        # self.X = h5.File(self.path,'r')['data'][rank::size]
-        # self.y = h5.File(self.path,'r')['pid'][rank::size]
-        # self.y = np.identity(2)[self.y.astype(np.int32)]
-        # self.jet = h5.File(self.path,'r')['jet'][rank::size]
-        # self.mask = self.X[:,:,2]!=0
-
-        # self.batch_size = batch_size
-        # self.nevts = h5.File(self.path,'r')['data'].shape[0]
-        # self.num_part = self.X.shape[1]
         self.num_pad = 6
         self.num_feat = self.X.shape[2] + self.num_pad #missing inputs
         
@@ -419,7 +408,7 @@ class TopDataLoader(DataLoader):
 
 class AtlasDataLoader(DataLoader):    
     def __init__(self, path, batch_size=512,rank=0,size=1,is_small=False):
-        super(AtlasDataLoader, self).__init__()
+        super().__init__(path, batch_size, rank, size)
         self.mean_jet =  [1.73933684e+03, 4.94380870e-04, 2.21667582e+02, 5.52376512e+01]
         self.std_jet  = [9.75164004e+02, 8.31232765e-01, 2.03672420e+02, 2.51242747e+01]
         
@@ -467,7 +456,7 @@ class AtlasDataLoader(DataLoader):
 
 class H1DataLoader(DataLoader):    
     def __init__(self, path, batch_size=512,rank=0,size=1):
-        super(H1DataLoader, self).__init__()
+        super().__init__(path, batch_size, rank, size)
 
         self.mean_part = [0.031, 0.0, -0.10,
                           -0.23,-0.10,0.27, 0.0,
@@ -491,7 +480,7 @@ class H1DataLoader(DataLoader):
 
 class OmniDataLoader(DataLoader):
     def __init__(self, path,rank=0,size=1):
-        super(OmniDataLoader, self).__init__()
+        super().__init__(path, batch_size, rank, size)
 
         self.mean_jet =  [2.25826286e+02, 1.25739745e-03, 1.83963520e+01 ,1.88828832e+01]
         self.std_jet  = [90.39824296 , 1.34598289 ,10.73467645  ,8.45697634]
@@ -541,7 +530,7 @@ class OmniDataLoader(DataLoader):
 
 class QGDataLoader(DataLoader):
     def __init__(self, path, batch_size=512,rank=0,size=1):
-        super(QGDataLoader, self).__init__()
+        super().__init__(path, batch_size, rank, size)
 
         self.load_data(path, batch_size,rank,size)        
         self.y = np.identity(2)[self.y.astype(np.int32)]
@@ -554,7 +543,7 @@ class QGDataLoader(DataLoader):
 
 class CMSQGDataLoader(DataLoader):
     def __init__(self, path, batch_size=512,rank=0,size=1):
-        super(CMSQGDataLoader, self).__init__()
+        super().__init__(path, batch_size, rank, size)
 
         self.load_data(path, batch_size,rank,size)
         self.y = np.identity(2)[self.y.astype(np.int32)]
@@ -567,16 +556,12 @@ class CMSQGDataLoader(DataLoader):
         
     
 class JetClassDataLoader(DataLoader):
-    def __init__(self, folder_path,
+    def __init__(self, path,
                  batch_size=512,rank=0,size=1,chunk_size=5000, **kwargs):
-        super(JetClassDataLoader, self).__init__()
-        self.folder_path = folder_path
-        self.batch_size = batch_size
-        self.rank = rank
-        self.size = size
+        super().__init__(path, batch_size, rank, size)
         self.chunk_size = chunk_size
 
-        all_files = [os.path.join(self.folder_path, f) for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+        all_files = [os.path.join(self.path, f) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
         self.files = np.array_split(all_files,self.size)[self.rank]
 
         self.get_stats(all_files)

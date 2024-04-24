@@ -2,33 +2,8 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.models import Model
 from tensorflow.keras import layers
-from layers import StochasticDepth, TalkingHeadAttention, LayerScale,RandomDrop
-from tensorflow.keras.losses import mse, categorical_crossentropy, kl_divergence
-from tensorflow.keras.initializers import GlorotUniform
-import math
-#import horovod.tensorflow as hvd
-
-
-def reset_weights(model, default_initializer=GlorotUniform):
-    for layer in model.layers:
-        if isinstance(layer, tf.keras.Model):
-            # If the layer is a model itself (e.g., Sequential or another Functional Model),
-            # recursively reset its weights
-            reset_weights(layer, default_initializer)
-        else:
-            # For layers with weights
-            for w in layer.weights:
-                # Check if the layer has an initializer
-                if hasattr(w, 'initializer') and w.initializer:
-                    initializer = w.initializer
-                else:
-                    # Use the default initializer
-                    initializer = default_initializer()
-                
-                # Assign new weights
-                new_w = initializer(w.shape, dtype=w.dtype)
-                w.assign(new_w)
-
+from layers import StochasticDepth, TalkingHeadAttention, LayerScale, RandomDrop
+from tensorflow.keras.losses import mse, categorical_crossentropy
 
 
 class PET(keras.Model):

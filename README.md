@@ -7,7 +7,7 @@ This is the official repository used in the paper OmniLearn: A Method to Simulta
 
 The list of packages needed to train/evaluate the model is found in the ```requirements.txt``` file. Alternatively, you can use the Docker container found in this [link](https://hub.docker.com/layers/vmikuni/tensorflow/ngc-23.12-tf2-v1/images/sha256-7aa143ab71775056f1ed3f74f1b7624e55f38108739374af958015dafea45eb3?context=repo).
 
-Our **recommendation** is to ude the docker container.
+Our **recommendation** is to use the docker container.
 
 # Data
 

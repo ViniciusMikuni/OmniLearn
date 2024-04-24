@@ -105,7 +105,7 @@ def get_generated_particles(sample_name):
 
 def get_from_file(test,keep_top=False,nevts=-1):
     #Load eval samples for metric calculation
-    X,flavour = test.data_from_file(test.files[0])        
+    X,flavour = test.data_from_file(test.files[0],preprocess=True)
     particles,jets,mask = X[0], X[3], X[2]
     
     if keep_top:
