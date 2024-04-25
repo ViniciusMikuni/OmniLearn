@@ -479,7 +479,7 @@ class H1DataLoader(DataLoader):
         
 
 class OmniDataLoader(DataLoader):
-    def __init__(self, path,rank=0,size=1):
+    def __init__(self, path, batch_size=512,rank=0,size=1):
         super().__init__(path, batch_size, rank, size)
 
         self.mean_jet =  [2.25826286e+02, 1.25739745e-03, 1.83963520e+01 ,1.88828832e+01]

@@ -18,9 +18,6 @@ def weighted_binary_crossentropy(y_true, y_pred):
 
     t_loss = weights*tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true, logits=y_pred)
     return tf.reduce_mean(t_loss)
-    probs = tf.nn.sigmoid(y_pred)
-    entropy = -weights*(probs * tf.math.log(probs + 1e-6))
-    return tf.reduce_mean(t_loss- 0.1*entropy)
 
 def convert_to_dict(x):    
     keys = ['input_features','input_points','input_mask','input_jet','input_time']
@@ -134,8 +131,6 @@ class OmniFold():
             
             ReduceLROnPlateau(patience=100, min_lr=1e-6, monitor="val_loss"),
             EarlyStopping(patience=3,restore_best_weights=True,monitor="val_loss"),
-            # hvd.callbacks.LearningRateWarmupCallback(initial_lr=self.lr*np.sqrt(self.size),
-            #                                          warmup_epochs=3, verbose=hvd.rank() ==0),
         ]
         
         
@@ -167,7 +162,6 @@ class OmniFold():
 
 
     def CompileModel(self,lr,fixed=False):
-
         
         lr_schedule_body = keras.optimizers.schedules.CosineDecay(
             initial_learning_rate=lr/self.lr_factor,
@@ -223,18 +217,6 @@ class OmniFold():
 
         self.model1.compile(opt_body1,opt_head1)
         self.model2.compile(opt_body2,opt_head2)
-        
-        # self.model1.compile(weighted_metrics=[],
-        #                     #run_eagerly=True,
-        #                     metrics=['accuracy'],
-        #                     optimizer=opt1,experimental_run_tf_function=False)
-
-        # self.model2.compile(weighted_metrics=[],                            
-        #                     #run_eagerly=True,
-        #                     metrics=['accuracy'],
-        #                     optimizer=opt2,experimental_run_tf_function=False)
-
-
 
     def PrepareInputs(self):
         self.labels_mc = np.zeros(self.mc.weight.shape[0],dtype=np.float32)

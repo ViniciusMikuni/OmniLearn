@@ -568,16 +568,6 @@ class PET_jetnet(keras.Model):
                                                                                 
             mean = alpha * x - sigma * v
             eps = v * alpha + x * sigma
-
-            # prev_pred_noises.append(eps)
-            # mean, eps = self.multistep_correction(
-            #     x,
-            #     alpha,
-            #     sigma,
-            #     prev_pred_noises,
-            #     num_multisteps=2,
-            # )
-            
             mean,eps = self.second_order_correction(t,x,mean,eps,
                                                     alpha,sigma,w,
                                                     cond,model,jet,masks,
