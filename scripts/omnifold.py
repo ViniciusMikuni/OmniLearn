@@ -11,13 +11,14 @@ from PET import PET
 import pickle
 
 def weighted_binary_crossentropy(y_true, y_pred):
-    weights = tf.cast(tf.gather(y_true, [1], axis=1),tf.float32) # event weights
-    y_true = tf.cast(tf.gather(y_true, [0], axis=1),tf.float32) # actual y_true for loss
-    
-    # Clip the prediction value to prevent NaN's and Inf's
+    """Custom loss function with weighted binary cross-entropy."""
+    weights = tf.cast(tf.gather(y_true, [1], axis=1), tf.float32)  # Event weights
+    y_true = tf.cast(tf.gather(y_true, [0], axis=1), tf.float32)  # Actual labels
 
-    t_loss = weights*tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true, logits=y_pred)
-    return tf.reduce_mean(t_loss)
+    # Compute loss using TensorFlow's built-in function to handle numerical stability
+    loss = weights * tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true, logits=y_pred)
+    return tf.reduce_mean(loss)
+
 
 def convert_to_dict(x):    
     keys = ['input_features','input_points','input_mask','input_jet','input_time']
@@ -35,27 +36,28 @@ def concat_data(list1,list2):
 
 
 class OmniFold():
+    """Main class for the OmniFold algorithm."""
     def __init__(self,version,num_iter,checkpoint_folder,
                  batch_size=512,epochs=200,size=1,
-                 wd = 0.1,b1=0.95,b2=0.99,lr_factor = 5.0,
-                 lr=1e-4,fine_tune=False):
+                 wd = 0.1,b1=0.95,b2=0.99,learning_rate_factor = 5.0,
+                 learning_rate=1e-4,fine_tune=False):
         
         self.version = version
         self.num_iter = num_iter
         self.mc = None
         self.data=None
-        self.BATCH_SIZE=batch_size
-        self.EPOCHS=epochs
-        self.lr = lr
+        self.batch_size=batch_size
+        self.epochs=epochs
+        self.learning_rate = learning_rate
         self.size = size
         self.fine_tune = fine_tune
         self.wd = wd
         self.b1 = b1
         self.b2 = b2
         if self.fine_tune:
-            self.lr_factor = lr_factor
+            self.learning_rate_factor = learning_rate_factor
         else:
-            self.lr_factor = 1.
+            self.learning_rate_factor = 1.
 
         self.checkpoint_folder = checkpoint_folder
             
@@ -64,12 +66,12 @@ class OmniFold():
         self.weights_pull = np.ones(self.mc.weight.shape[0])
         self.weights_push = np.ones(self.mc.weight.shape[0])
         self.scale = 1.0
-        self.CompileModel(self.lr)
+        self.CompileModel(self.learning_rate)
         for i in range(self.num_iter):
             if hvd.rank()==0:print("ITERATION: {}".format(i + 1))
             self.RunStep1(i)
             self.RunStep2(i)
-            self.CompileModel(self.lr,fixed=True)
+            self.CompileModel(self.learning_rate,fixed=True)
             
 
     def RunStep1(self,i):
@@ -143,8 +145,8 @@ class OmniFold():
                     
         hist =  model.fit(
             data,y,
-            batch_size = self.BATCH_SIZE,
-            epochs=self.EPOCHS,
+            batch_size = self.batch_size,
+            epochs=self.epochs,
             validation_split=0.1,
             shuffle=True,
             #validation_data = (X_train,y_train),
@@ -161,28 +163,28 @@ class OmniFold():
         self.PrepareModel(model1,model2)
 
 
-    def CompileModel(self,lr,fixed=False):
+    def CompileModel(self,learning_rate,fixed=False):
         
-        lr_schedule_body = keras.optimizers.schedules.CosineDecay(
-            initial_learning_rate=lr/self.lr_factor,
-            warmup_target = lr*np.sqrt(self.size)/self.lr_factor,
-            warmup_steps= 3*(self.mc.nevts + self.data.nevts)//self.BATCH_SIZE//self.size,
-            decay_steps= self.EPOCHS*(self.mc.nevts + self.data.nevts)//self.BATCH_SIZE//self.size,
+        learning_rate_schedule_body = keras.optimizers.schedules.CosineDecay(
+            initial_learning_rate=learning_rate/self.learning_rate_factor,
+            warmup_target = learning_rate*np.sqrt(self.size)/self.learning_rate_factor,
+            warmup_steps= 3*(self.mc.nevts + self.data.nevts)//self.batch_size//self.size,
+            decay_steps= self.epochs*(self.mc.nevts + self.data.nevts)//self.batch_size//self.size,
             alpha = 1e-2,
         )
 
 
-        lr_schedule_head = keras.optimizers.schedules.CosineDecay(
-            initial_learning_rate=lr,
-            warmup_target = lr*np.sqrt(self.size),
-            warmup_steps= 3*(self.mc.nevts + self.data.nevts)//self.BATCH_SIZE//self.size,
-            decay_steps= self.EPOCHS*(self.mc.nevts + self.data.nevts)//self.BATCH_SIZE//self.size,
+        learning_rate_schedule_head = keras.optimizers.schedules.CosineDecay(
+            initial_learning_rate=learning_rate,
+            warmup_target = learning_rate*np.sqrt(self.size),
+            warmup_steps= 3*(self.mc.nevts + self.data.nevts)//self.batch_size//self.size,
+            decay_steps= self.epochs*(self.mc.nevts + self.data.nevts)//self.batch_size//self.size,
             alpha = 1e-2,
         )
 
-        min_lr = 1e-6
+        min_learning_rate = 1e-6
         opt_head1 = tf.keras.optimizers.Lion(
-            learning_rate=min_lr if fixed else lr_schedule_head,
+            learning_rate=min_learning_rate if fixed else learning_rate_schedule_head,
             weight_decay=self.wd,
             beta_1=self.b1,
             beta_2=self.b2)
@@ -190,7 +192,7 @@ class OmniFold():
         opt_head1 = hvd.DistributedOptimizer(opt_head1)
         
         opt_body1 = tf.keras.optimizers.Lion(
-            learning_rate=min_lr if fixed else lr_schedule_body,
+            learning_rate=min_learning_rate if fixed else learning_rate_schedule_body,
             weight_decay=self.wd,
             beta_1=self.b1,
             beta_2=self.b2)
@@ -199,7 +201,7 @@ class OmniFold():
 
 
         opt_head2 = tf.keras.optimizers.Lion(
-            learning_rate=min_lr if fixed else lr_schedule_head,
+            learning_rate=min_learning_rate if fixed else learning_rate_schedule_head,
             weight_decay=self.wd,
             beta_1=self.b1,
             beta_2=self.b2)
@@ -207,7 +209,7 @@ class OmniFold():
         opt_head2 = hvd.DistributedOptimizer(opt_head2)
         
         opt_body2 = tf.keras.optimizers.Lion(
-            learning_rate=min_lr if fixed else lr_schedule_body,
+            learning_rate=min_learning_rate if fixed else learning_rate_schedule_body,
             weight_decay=self.wd,
             beta_1=self.b1,
             beta_2=self.b2)
@@ -230,7 +232,7 @@ class OmniFold():
 
     def reweight(self,events,model,batch_size=None):
         if batch_size is None:
-           batch_size =  self.BATCH_SIZE
+           batch_size =  self.batch_size
         f = np.nan_to_num(expit(model.predict(events,batch_size=batch_size,verbose=0)[0])
                           ,posinf=1,neginf=0)
         weights = f / (1.0 -f)

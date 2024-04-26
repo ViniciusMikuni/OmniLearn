@@ -463,12 +463,6 @@ class PET_jetnet(keras.Model):
             one_minus_r = -tf.math.expm1(logsnr_t - logsnr_s)  # 1-SNR(t)/SNR(s)
             
             mean = r * alpha_st * x + one_minus_r * alpha_ * pred_x
-
-            # min_lvar = tf.math.log(one_minus_r) + tf.math.log_sigmoid(-logsnr_s)
-            # max_lvar = tf.math.log(one_minus_r) + tf.math.log_sigmoid(-logsnr_t)
-            # noise_param = 0.2
-            # std = tf.sqrt(tf.exp(noise_param*max_lvar + (1.0 - noise_param)*min_lvar))
-            
                       
             std = tf.sqrt(one_minus_r) * sigma
             eps = tf.random.normal(data_shape,dtype=tf.float32)

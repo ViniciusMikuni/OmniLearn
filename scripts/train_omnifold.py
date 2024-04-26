@@ -82,8 +82,8 @@ def main():
         wd=flags.wd,
         b1=flags.b1,
         b2=flags.b2,
-        lr_factor=flags.lr_factor,
-        lr=flags.lr,
+        learning_rate_factor=flags.lr_factor,
+        learning_rate=flags.lr,
         fine_tune=flags.fine_tune,
         size=hvd.size()
     )
