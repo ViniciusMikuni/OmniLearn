@@ -11,15 +11,6 @@ from omnifold import OmniFold, Classifier
 import utils
 
 
-hvd.init()
-
-def setup_gpus():
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    if gpus:
-        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
-
 def parse_arguments():
     parser = argparse.ArgumentParser(description="OmniFold training script with distributed computing.")
     parser.add_argument("--folder", type=str, default="/pscratch/sd/v/vmikuni/PET", help="Folder containing input files")
@@ -44,7 +35,7 @@ def parse_arguments():
     return args
 
 def main():
-    setup_gpus()
+    utils.setup_gpus()
     flags = parse_arguments()
 
     mc = utils.OmniDataLoader(os.path.join(flags.folder, 'OmniFold', 'train_pythia.h5'),flags.batch, hvd.rank(), hvd.size())

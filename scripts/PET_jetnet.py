@@ -9,6 +9,7 @@ from tensorflow.keras.models import Model
 from PET import PET, FourierProjection, get_encoding
 #import horovod.tensorflow as hvd
 from layers import StochasticDepth,LayerScale
+from tqdm import tqdm
 
 class PET_jetnet(keras.Model):
     """Score based generative model"""
@@ -351,26 +352,26 @@ class PET_jetnet(keras.Model):
     def call(self,x):        
         return self.model(x)
 
-    def generate(self,cond,nsplit = 2,jets=None):
-
+    def generate(self,cond,nsplit = 2,jets=None,use_tqdm=False):
         jet_info = []
         part_info = []
 
         if jets is not None:
             jet_split = np.array_split(jets,nsplit)
-        for i,split in enumerate(np.array_split(cond,nsplit)):
+            
+        splits = np.array_split(cond, nsplit)
+        
+        #iterable = tqdm(splits,desc='Processing Splits',total=len(splits)) if use_tqdm else splits
+        for i, split in tqdm(enumerate(splits), total=len(splits), desc='Processing Splits') if use_tqdm else enumerate(splits):
             if jets is not None:
                 jet = jet_split[i]
             else:
-                start = time.time()
                 
                 jet = self.DDPMSampler(split,self.ema_jet,
                                        data_shape=[split.shape[0],self.num_jet],
                                        w = 0.0,
                                        num_steps = 512,
                                        const_shape = [-1,1]).numpy()
-                end = time.time()
-                print("Time for sampling {} events is {} seconds".format(split.shape[0],end - start))
 
             jet_info.append(jet)
             
@@ -382,7 +383,6 @@ class PET_jetnet(keras.Model):
         
             assert np.sum(np.sum(mask.reshape(mask.shape[0],-1),-1,keepdims=True)-nparts)==0, 'ERROR: Particle mask does not match the expected number of particles'
 
-            start = time.time()
             parts = self.DDPMSampler(split,[self.ema_body,self.ema_head],
                                      data_shape=[split.shape[0],self.max_part,self.num_feat],
                                      jet=jet,
@@ -390,12 +390,7 @@ class PET_jetnet(keras.Model):
                                      const_shape = self.shape,
                                      w = 0.0,
                                      mask=mask.astype(np.float32)).numpy()
-            part_info.append(parts*mask)
-            # parts = np.ones(shape=(split.shape[0],self.max_part,self.num_feat))
-            # part_info.append(parts)
-            end = time.time()
-            print("Time for sampling {} events is {} seconds".format(split.shape[0],end - start))
-            
+            part_info.append(parts*mask)            
         return np.concatenate(part_info),np.concatenate(jet_info)
     
 

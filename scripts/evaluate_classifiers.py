@@ -12,14 +12,6 @@ from PET import PET
 import utils
 from omnifold import Classifier
 
-def setup_gpus():
-    hvd.init()
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    if gpus:
-        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
-
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Evaluate performance metrics for trained models on various datasets.")
     parser.add_argument("--dataset", type=str, default="top", help="Folder containing input files")
@@ -172,7 +164,7 @@ def load_or_evaluate_model(flags, test,folder_name):
         return y, pred
 
 def main():
-    setup_gpus()
+    utils.setup_gpus()
     flags = parse_arguments()
 
     test,multi_label,thresholds,folder_name = get_data_info(flags)

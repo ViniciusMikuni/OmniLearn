@@ -13,14 +13,6 @@ from PET import PET
 import utils
 from PET_lhco import Classifier
 
-def setup_gpus():
-    hvd.init()
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    if gpus:
-        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
-
 def parse_options():
     parser = OptionParser(usage="%prog [opt]  inputFiles")
     parser.add_option("--dataset", type="string", default="lhco", help="Folder containing input files")
@@ -118,7 +110,7 @@ def display_statistics(sic, aucs):
     print(f"auc_higher = {np.array2string(auc_high, separator=', ')}")
 
 def main():
-    setup_gpus()
+    utils.setup_gpus()
     flags, args = parse_options()
     test = load_data(flags)
     evaluate_model(flags, test)

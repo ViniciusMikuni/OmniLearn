@@ -9,6 +9,16 @@ import random
 import itertools
 import pickle, copy
 from scipy.stats import norm
+import horovod.tensorflow.keras as hvd
+
+def setup_gpus():
+    hvd.init()
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    if gpus:
+        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
+
 
 def get_model_name(flags,fine_tune=False,add_string=""):
     model_name = 'PET_{}_{}_{}_{}_{}_{}_{}{}.weights.h5'.format(

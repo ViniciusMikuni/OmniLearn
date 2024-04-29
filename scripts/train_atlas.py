@@ -20,12 +20,6 @@ hvd.init()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def setup_gpus():
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    if gpus:
-        tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Train the Classifier model on the ATLAS dataset.")
@@ -68,7 +62,7 @@ def configure_optimizers(flags, train_loader, lr_factor=1.0):
     return hvd.DistributedOptimizer(optimizer)
 
 def main():
-    setup_gpus()
+    utils.setup_gpus()
     flags = parse_arguments()
 
     train_loader, val_loader = get_data_loader(flags)
