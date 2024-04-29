@@ -1,7 +1,20 @@
 # Official Repository for the OmniLearn paper
 ![Model Architecture](./assets/PET_arch.png)
 
-This is the official repository used in the paper OmniLearn: A Method to Simultaneously Facilitate All Jet Physics Tasks.
+This is the official repository used in the paper OmniLearn: A Method to Simultaneously Facilitate All Jet Physics Tasks. if you find this repository useful please cite the paper:
+
+```
+@article{Mikuni:2024qsr,
+    author = "Mikuni, Vinicius and Nachman, Benjamin",
+    title = "{OmniLearn: A Method to Simultaneously Facilitate All Jet Physics Tasks}",
+    eprint = "2404.16091",
+    archivePrefix = "arXiv",
+    primaryClass = "hep-ph",
+    month = "4",
+    year = "2024"
+}
+```
+
 
 # Installation
 
