@@ -1,7 +1,7 @@
 # Official Repository for the OmniLearn paper
 ![Model Architecture](./assets/PET_arch.png)
 
-This is the official repository used in the paper OmniLearn: A Method to Simultaneously Facilitate All Jet Physics Tasks. if you find this repository useful please cite the paper:
+This is the official repository used in the paper OmniLearn: A Method to Simultaneously Facilitate All Jet Physics Tasks. If you find this repository useful for your own work please cite the paper:
 
 ```
 @article{Mikuni:2024qsr,
@@ -164,7 +164,7 @@ python train_omnifold.py  --layer_scale --local --num_iter 5 --fine_tune
 With number of iterations determined by the ```--num_iter``` flag. The evaluation is performed with script:
 
 ```bash
-python evaluate_omnifold.py --local --layer_scale [--reco] --num_iter 5 --fine_tune
+python evaluate_omnifold.py --local --layer_scale [--reco] --num_iter 5
 ```
 
 The ```--reco``` flag is used to load step 1 iteration 0 of the algorithm, equivalent to the event reweighting results shown in the paper.

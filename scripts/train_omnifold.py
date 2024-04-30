@@ -3,7 +3,6 @@ import os
 import tensorflow as tf
 import horovod.tensorflow.keras as hvd
 import argparse
-import logging
 from tensorflow import keras
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 
