@@ -67,8 +67,8 @@ colors = {
     'jetnet150':'#e7298a',
     'omnifold_fine_tune':'darkorange',
     'omnifold':'darkorange',
-    'lhco_fine_tune':'red',
-    'lhco':'red',
+    'lhco_fine_tune':'#917E9C',
+    'lhco':'#fc8d59',
     'jetclass':'black',
 
     't_truth':'#1b9e77',
@@ -91,7 +91,7 @@ colors = {
 
     'atlas_small_fine_tune':'#7570b3',
     'atlas_small':'#7570b3',
-    'true':'#1b9e77',
+    'true':'black',
     'gen':'#1b9e77',
 
     'herwig': 'black',
@@ -286,7 +286,7 @@ def HistRoutine(feed_dict,
     ax0 = plt.subplot(gs[0])
 
     if plot_ratio:
-        plt.xticks(fontsize=0)
+        plt.tick_params(axis='x', labelbottom=False)
         ax1 = plt.subplot(gs[1],sharex=ax0)
     
     if binning is None:
