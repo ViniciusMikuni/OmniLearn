@@ -2,7 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
-import matplotlib.ticker as mtick
+
 
 line_style = {
     'top_fine_tune':'dotted',
@@ -254,11 +254,6 @@ def PlotRoutine(feed_dict,xlabel='',ylabel='',reference_name='gen',plot_ratio = 
         
     return fig,ax0
 
-class ScalarFormatterClass(mtick.ScalarFormatter):
-    #https://www.tutorialspoint.com/show-decimal-places-and-scientific-notation-on-the-axis-of-a-matplotlib-plot
-    def _set_format(self):
-        self.format = "%1.1f"
-
 
 def FormatFig(xlabel,ylabel,ax0):
     ax0.set_xlabel(xlabel,fontsize=20)
@@ -288,7 +283,8 @@ def HistRoutine(feed_dict,
     if plot_ratio:
         plt.tick_params(axis='x', labelbottom=False)
         ax1 = plt.subplot(gs[1],sharex=ax0)
-    
+
+        
     if binning is None:
         binning = np.linspace(np.quantile(feed_dict[reference_name],0.01),np.quantile(feed_dict[reference_name],0.99),50)
         
@@ -334,6 +330,8 @@ def HistRoutine(feed_dict,
         ax0.set_ylim(0,1.3*maxy)
 
     ax0.legend(loc=label_loc,fontsize=16,ncol=2)
+    ax0.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+    
     if plot_ratio:
         FormatFig(xlabel = "", ylabel = ylabel,ax0=ax0) 
         plt.ylabel('Ratio to Truth')
