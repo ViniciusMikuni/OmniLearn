@@ -100,15 +100,14 @@ def preprocess(path,labels):
             p = h5f['particles'][:10_000].astype(np.float32)
             # For Pythia EIC, there are no jets, we generate particles 
             # for the event. Jet here will be event properties,
-            # Most importantly multiplicity:
+            # Most importantly multiplicity
 
+            p = process(p)  # applies mask 
+            pid = np.ones(np.shape(p[: , :, PID_INDEX]))  
+            # for EIC pythia, PID is a particle feature
+            # not a feature to be conditioned on for generation,
+            # PID is in the particle data structure, 'p'. pid here is dummy
 
-            # pid = to_categorical(labels[label]*np.ones(shape=(j.shape[0],1)), num_classes=5) # OLD REF.
-
-            # print((p[:,:,PID_INDEX]))
-            p = process(p) #removes PID, applies mask 
-            pid = np.ones(np.shape(p[:,:,PID_INDEX]))
-            # print(pid)
             j = np.count_nonzero(p[:,:,0], axis=-1, keepdims=True)  
 
             train['data'].append(p[:int(0.63*ntotal)])
