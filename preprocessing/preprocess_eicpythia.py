@@ -47,29 +47,21 @@ def Recenter(particles):
 def process(p):
     '''particles features: [pT, eta, phi, PID, z]'''
 
-    mask = p[:,:,0]!=0  # mask is from pT==0
-    new_p = np.zeros(shape=(p.shape[0],p.shape[1],5)) 
+    mask = p[:,:,0]!=0.0  # mask is from pT==0
+    new_p = np.zeros(shape=(p.shape[0],p.shape[1],4)) 
     
-    new_p[:,:,0] = np.ma.log(p[:,:,0]).filled(0) # pT
-    new_p[:,:,1] = p[:,:,1]                      # eta
-    new_p[:,:,2] = p[:,:,2]                      # phi
-    new_p[:,:,3] = p[:,:,3]                      # PID
-    new_p[:,:,4] = p[:,:,4]                      # z
+
+    new_p[:,:,2] = np.ma.log(1.0 - p[:,:,0]).filled(0) # pT
+    new_p[:,:,0] = p[:,:,1]                      # eta
+    new_p[:,:,1] = p[:,:,2]                      # phi
+    new_p[:,:,3] = p[:,:,4]                      # z
+    # the main DataLoader class calculates disttances, expecting eta and phi at 0 and 1
+    # we add PID in the next line, z is now at index 3
+
+    pid = to_categorical(p[:,:,PID_INDEX], num_classes=3)  #e-, pi+, K+ -- May 2024
+    new_p = new_p.concatenate(pid, -1)
 
     new_p = new_p*mask[:,:,None]
-
-    # pid = to_categorical(new_p[:,:,PID_INDEX], num_classes=3)  #e-, pi+, K+ -- May 2024
-
-    #JETNET
-    # p_e = j[:,None,0]*p[:,:,2]*np.cosh(p[:,:,0] + j[:,None,1])
-    # j_e = np.sqrt(j[:,None,0]**2 + j[:,None,2]**2)*np.cosh(j[:,None,1])
-
-    #angles
-    # new_p[:,:,2] = np.ma.log(1.0 - p[:,:,2]).filled(0)
-    # new_p[:,:,3] = np.ma.log(p[:,:,2]*j[:,None,0]).filled(0)
-    # new_p[:,:,4] = np.ma.log(1.0 - p_e/j_e).filled(0)
-    # new_p[:,:,5] = np.ma.log(p_e).filled(0)
-    # new_p[:,:,6] = np.hypot(p[:,:,0],p[:,:,1])
 
     return new_p
     
