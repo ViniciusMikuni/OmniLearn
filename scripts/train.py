@@ -45,6 +45,9 @@ def get_data_loader(flags):
     if flags.dataset == 'top':
         train = utils.TopDataLoader(os.path.join(flags.folder,'TOP', 'train_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
         val = utils.TopDataLoader(os.path.join(flags.folder,'TOP', 'val_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
+    elif flags.dataset == 'tau':
+        train = utils.TauDataLoader(os.path.join(flags.folder,'TAU', 'train_tau.h5'),flags.batch,hvd.rank(),hvd.size())
+        val = utils.TauDataLoader(os.path.join(flags.folder,'TAU', 'val_tau.h5'),flags.batch,hvd.rank(),hvd.size())
     elif flags.dataset == 'qg':
         train = utils.QGDataLoader(os.path.join(flags.folder,'QG', 'train_qg.h5'),flags.batch,hvd.rank(),hvd.size())
         val = utils.QGDataLoader(os.path.join(flags.folder,'QG', 'val_qg.h5'),flags.batch,hvd.rank(),hvd.size())
@@ -92,6 +95,7 @@ def main():
                 simple=flags.simple, layer_scale=flags.layer_scale,
                 talking_head=flags.talking_head,
                 mode=flags.mode)
+
 
     if flags.fine_tune:
         if hvd.rank()==0:

@@ -95,11 +95,18 @@ def sample_data(test, model, flags, sample_name):
             h5f.create_dataset("jet", data=jets_gen)
             h5f.create_dataset("pid", data=y)
             
-def get_generated_data(sample_name):
+def get_generated_data(sample_name,keep_top=False):
     with h5.File(sample_name,"r") as h5f:
         jets_gen = h5f['jet'][:]
         particles_gen = h5f['data'][:,:,:3]        
         flavour_gen = h5f['pid'][:jets_gen.shape[0]]
+        
+    if keep_top:
+        mask_pid = np.argmax(flavour_gen,-1) == 2    
+        particles_gen=particles_gen[mask_pid]
+        jets_gen=jets_gen[mask_pid]
+        flavour_gen=flavour_gen[mask_pid]
+
 
     def undo_pt(x):
         x[:,:,2] = 1.0 - np.exp(particles_gen[:,:,2])
@@ -211,7 +218,7 @@ def main():
         # Load and process data, generate plots, etc.        
         test = get_data_info(flags)
         jets, particles, flavour = get_from_dataloader(test,keep_top = flags.top)
-        jets_gen, particles_gen, flavour_gen = get_generated_data(sample_name)
+        jets_gen, particles_gen, flavour_gen = get_generated_data(sample_name,keep_top=flags.top)
         
         if not flags.skip_metric:
             if hvd.rank()==0:logging.info("Evaluating metrics.")

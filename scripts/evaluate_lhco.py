@@ -33,7 +33,6 @@ def parse_arguments():
     parser.add_argument("--simple", action='store_true', help="Use simplified head model")
     parser.add_argument("--talking_head", action='store_true', help="Use talking head attention")
     parser.add_argument("--layer_scale", action='store_true', help="Use layer scale in the residual connections")
-    parser.add_argument("--skip_classifier", action='store_true', help="Skip metric calculation")
     parser.add_argument("--sample", action='store_true', help="Sample from trained model")
     parser.add_argument("--weighted", action='store_true', help="Load weights to correct model prediction")
     parser.add_argument("--plot_folder", default="../plots", help="Folder to save the outputs")

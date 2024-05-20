@@ -7,6 +7,9 @@ from matplotlib import gridspec
 line_style = {
     'top_fine_tune':'dotted',
     'top':'-',
+    'tau_fine_tune':'dotted',
+    'tau':'-',
+
     'qg_fine_tune':'dotted',
     'qg':'-',
     'cms_fine_tune':'dotted',
@@ -59,6 +62,8 @@ line_style = {
 colors = {
     'top_fine_tune':'#7570b3',
     'top':'#7570b3',
+    'tau_fine_tune':'#7570b3',
+    'tau':'#7570b3',
     'qg_fine_tune':'#d95f02',
     'qg':'#d95f02',
     'jetnet30_fine_tune':'#1b9e77',
@@ -105,6 +110,8 @@ colors = {
 name_translate = {
     'top_fine_tune':'Top tagging OmniLearn',
     'top':'Top tagging',
+    'tau_fine_tune':'Tau tagging OmniLearn',
+    'tau':'Tau tagging',
     'qg_fine_tune':'Quark/Gluon OmniLearn',
     'qg':'Quark/Gluon',
     'jetnet30_fine_tune':'JetNet30 OmniLearn',
@@ -153,7 +160,10 @@ name_translate = {
 
 
 def plot(jet1,jet2,flav1,flav2,nplots,title,plot_folder,is_big,names):
-        
+    var_names = ['Jet p$_{T}$ [GeV]', 'Jet $\eta$','Jet Mass [GeV]','Multiplicity']
+    if nplots ==3:
+        var_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($1 - p_{Trel}$)']
+    
     for ivar in range(nplots):        
         for i,unique in enumerate(np.unique(np.argmax(flav1,-1))):
             mask1 = np.argmax(flav1,-1)== unique
@@ -165,7 +175,7 @@ def plot(jet1,jet2,flav1,flav2,nplots,title,plot_folder,is_big,names):
             }
             
             if i == 0:                            
-                fig,gs,binning = HistRoutine(feed_dict,xlabel="{}".format(i),
+                fig,gs,binning = HistRoutine(feed_dict,xlabel=var_names[ivar],
                                              plot_ratio=False,
                                              reference_name='{}_truth'.format(names[unique]),
                                              ylabel= 'Normalized entries')
