@@ -66,6 +66,9 @@ class DataLoader:
 
         self.mean_jet =  [ 6.18224920e+02, 0.0, 1.2064709e+02,3.94133173e+01]
         self.std_jet  = [106.71761,0.88998157,40.196922,15.096386]
+
+        self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($1 - p_{Trel}$)','log($p_{T}$)','log($1 - E_{rel}$)','log($E$)','$\Delta$R']
+        self.jet_names = ['Jet p$_{T}$ [GeV]', 'Jet $\eta$', 'Jet Mass [GeV]','Multiplicity']
         
     
     def pad(self,x,num_pad):
@@ -199,6 +202,43 @@ class JetNetDataLoader(DataLoader):
         self.num_classes = self.y.shape[1]
         self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
         self.files = [path]
+
+
+class EicPythiaDataLoader(DataLoader):
+    def __init__(self, path, batch_size=512,rank=0,size=1,big=False):
+        super().__init__(path, batch_size, rank, size)
+        self.mean_part = [0.0, 0.0, -0.035,
+                          2.791,-0.035, 3.03, 0.0,
+                          0.0, 0.0,  0.0,  0.0,  0.0, 0.0]
+        self.std_part = [0.09, 0.09,  0.067, 
+                         1.241, 0.067,1.26,1.0,
+                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        
+        self.mean_jet =  [1.0458962e+03, 3.6804923e-03, 9.4020386e+01, 2.9036360e+01]
+        self.std_jet  = [123.23525 ,0.7678173 ,43.103817 ,2.76302]
+
+        self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($1 - p_{Trel}$)','z',
+                           'is electron','is pion','is kaon']
+        self.jet_names = ['Multiplicity']
+
+            
+        def add_noise(self,x):
+            #Add noise to the jet multiplicity
+            noise = np.random.uniform(-0.5,0.5,x.shape[0])
+            x[:,-1]+=noise[:,None]
+            return x
+            
+        def preprocess_jet(self,x):
+            new_x = self.add_noise(copy.deepcopy(x))
+            return (new_x-self.mean_jet)/self.std_jet
+
+
+        self.load_data(path, batch_size,rank,size)
+        self.num_feat = self.X.shape[2]
+        self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
+        self.files = [path]
+
+
         
 
 class LHCODataLoader(DataLoader):
