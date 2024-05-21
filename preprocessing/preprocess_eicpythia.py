@@ -1,5 +1,6 @@
 import h5py as h5
 import os
+import sys
 import numpy as np
 from optparse import OptionParser
 # from keras.utils.np_utils import to_categorical
@@ -50,22 +51,45 @@ def process(p):
     mask = p[:,:,0]!=0.0  # mask is from pT==0
     new_p = np.zeros(shape=(p.shape[0],p.shape[1],4)) 
     
+    #Modify the scattered electron pT for taking log later
+    # p[:,0,0] = p[:,0,0]/np.max(p[:,0,0])
+    p[:,0,0] = p[:,0,0]/49.0  # max pT of electron is ~48.0 GeV
 
-    new_p[:,:,2] = np.ma.log(1.0 - p[:,:,0]).filled(0) # pT
-    new_p[:,:,0] = p[:,:,1]                      # eta
-    new_p[:,:,1] = p[:,:,2]                      # phi
-    new_p[:,:,3] = p[:,:,4]                      # z
-    # the main DataLoader class calculates disttances, expecting eta and phi at 0 and 1
+    print("Line 55, before feature shuffle\n", p[1,:3])
+    new_p[:,:,2] = np.ma.log(1.0 - p[:,:,0]).filled(0)  # pT
+    new_p[:,:,0] = p[:,:,1]                             # eta
+    new_p[:,:,1] = p[:,:,2]                             # phi
+    new_p[:,:,3] = p[:,:,4]                             # z
+    print("\n\nLine 60, AFTER feature shuffle\n", new_p[1,:3])
+    # the main DataLoader class calculates disttanc/s, expecting eta and phi at 0 and 1
     # we add PID in the next line, z is now at index 3
 
-    pid = to_categorical(p[:,:,PID_INDEX], num_classes=3)  #e-, pi+, K+ -- May 2024
-    new_p = new_p.concatenate(pid, -1)
+    #convert PIDs to consecutive ints, then to category vectors
+    pid = p[:,:,PID_INDEX]  #e-, pi+, K+  [11, 211, 321] -- May 2024
+
+    # Create a mapping of unique values to indices
+    unique_values = np.unique(pid)[1:]
+
+    value_to_index = {value: index for index, value in enumerate(unique_values)}
+
+    # Map the 'pid' values to their respective indices
+    # pid_indices = np.vectorize(value_to_index.get)(pid)
+    pid_indices = np.vectorize(lambda x: value_to_index.get(x, 0))(pid)
+
+    # Convert indices to one-hot encoding
+    pid_categorical = to_categorical(pid_indices)
+
+    new_p = np.concatenate((new_p, pid_categorical), -1)
+    print("\n\nLine 80, after PID CONCAT\n", new_p[1,:3])
 
     new_p = new_p*mask[:,:,None]
 
+    print("\n\nLine 84, after MASK\n", new_p[1,:3])
+    # print(new_p[:2])
+
     return new_p
     
-def preprocess(path,labels):
+def preprocess(path, labels, nevent_max=-1, npart_max=-1):
 
     train = {
         'data':[],
@@ -87,20 +111,24 @@ def preprocess(path,labels):
 
     for label in labels:        
         with h5.File(os.path.join(path,label),"r") as h5f:
-            ntotal = h5f['particles'][:].shape[0]
 
-            p = h5f['particles'][:10_000].astype(np.float32)
+            ntotal = h5f['particles'][:nevent_max].shape[0]
+
+            p = h5f['particles'][:nevent_max,:npart_max].astype(np.float32)
+            print(np.shape(p))
+
+            p = process(p)  # applies mask, saves real pid, shuffles feature indecies for training
+            j = np.count_nonzero(p[:,:,2], axis=-1, keepdims=True)  #pT moved to index 2
             # For Pythia EIC, there are no jets, we generate particles 
             # for the event. Jet here will be event properties,
             # Most importantly multiplicity
 
-            p = process(p)  # applies mask 
+
             pid = np.ones(np.shape(p[: , :, PID_INDEX]))  
             # for EIC pythia, PID is a particle feature
             # not a feature to be conditioned on for generation,
             # PID is in the particle data structure, 'p'. pid here is dummy
 
-            j = np.count_nonzero(p[:,:,0], axis=-1, keepdims=True)  
 
             train['data'].append(p[:int(0.63*ntotal)])
             train['jet'].append(j[:int(0.63*ntotal)])
@@ -130,7 +158,9 @@ def preprocess(path,labels):
 if __name__=='__main__':
     parser = OptionParser(usage="%prog [opt]  inputFiles")
     parser.add_option("--folder", type="string", default='/global/cfs/cdirs/m4662/data/', help="Folder containing input files")
-    parser.add_option("--label", type="string", default='30', help="Which dataset to use")
+    parser.add_option("--label", type="string", default='150', help="Which dataset to use")
+    parser.add_option("--nevent_max", type="int", default='1_000_000', help="max number of events")
+    parser.add_option("--npart_max", type="int", default='30', help="max number of particses per event")
     (flags, args) = parser.parse_args()
 
     if '150' in flags.label:
@@ -138,7 +168,7 @@ if __name__=='__main__':
     else:
         label = labels30
     
-    train, val, test = preprocess(os.path.join(flags.folder, 'EIC_Pythia'),label)
+    train, val, test = preprocess(os.path.join(flags.folder, 'EIC_Pythia'),label, flags.nevent_max, flags.npart_max)
 
     with h5.File('{}/train_{}.h5'.format(os.path.join(flags.folder, 'EIC_Pythia'),flags.label), "w") as fh5:
         dset = fh5.create_dataset('data', data=train['data'])
