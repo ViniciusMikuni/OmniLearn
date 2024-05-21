@@ -160,6 +160,43 @@ class DataLoader:
         return new_x
 
 
+class EicPythiaDataLoader(DataLoader):
+    '''based off jetnet. No jets, just events and particles'''
+
+    def __init__(self, path, batch_size=512,rank=0,size=1,big=False):
+        super().__init__(path, batch_size, rank, size)
+        if big:
+            self.mean_part = [0.06974325, 0.015526171, 0.0014591367, 0.0075381063, 1.0]
+            self.std_part = [0.6292602, 0.44993857, 1.7951037, 0.071400896, 0.0]
+            
+            self.mean_jet =  [5.855501]  #event multiplicity
+            self.std_jet  = [2.22327]
+        else:
+            self.mean_part = [0.06974325, 0.015526171, 0.0014591367, 0.0075381063, 1.0]
+            self.std_part = [0.6292602, 0.44993857, 1.7951037, 0.071400896, 0.0]
+            
+            self.mean_jet =  [5.855501]  #event multiplicity
+            self.std_jet  = [2.22327]
+            
+        def add_noise(self,x):
+            #Add noise to the event multiplicity
+            noise = np.random.uniform(-0.5,0.5,x.shape[0])
+            x[:,-1]+=noise[:,None]
+            return x
+            
+        def preprocess_jet(self,x):
+            new_x = self.add_noise(copy.deepcopy(x))
+            return (new_x-self.mean_jet)/self.std_jet
+
+
+        self.load_data(path, batch_size,rank,size)
+        self.big = big        
+        self.num_pad = 0
+        self.num_feat = self.X.shape[2] + self.num_pad #missing inputs
+        self.num_classes = self.y.shape[1]
+        self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
+
+
 class JetNetDataLoader(DataLoader):
     def __init__(self, path, batch_size=512,rank=0,size=1,big=False):
         super().__init__(path, batch_size, rank, size)
