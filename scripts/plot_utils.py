@@ -9,6 +9,8 @@ line_style = {
     'top':'-',
     'tau_fine_tune':'dotted',
     'tau':'-',
+    'eic_fine_tune':'dotted',
+    'eic':'-',
 
     'qg_fine_tune':'dotted',
     'qg':'-',
@@ -64,6 +66,8 @@ colors = {
     'top':'#7570b3',
     'tau_fine_tune':'#7570b3',
     'tau':'#7570b3',
+    'eic_fine_tune':'#7570b3',
+    'eic':'#7570b3',
     'qg_fine_tune':'#d95f02',
     'qg':'#d95f02',
     'jetnet30_fine_tune':'#1b9e77',
@@ -112,6 +116,9 @@ name_translate = {
     'top':'Top tagging',
     'tau_fine_tune':'Tau tagging OmniLearn',
     'tau':'Tau tagging',
+
+    'eic_fine_tune':'EIC Pythia OmniLearn',
+    'eic':'EIC Pythia',
     'qg_fine_tune':'Quark/Gluon OmniLearn',
     'qg':'Quark/Gluon',
     'jetnet30_fine_tune':'JetNet30 OmniLearn',

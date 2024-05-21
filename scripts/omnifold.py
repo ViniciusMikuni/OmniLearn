@@ -65,7 +65,6 @@ class OmniFold():
                                         
         self.weights_pull = np.ones(self.mc.weight.shape[0])
         self.weights_push = np.ones(self.mc.weight.shape[0])
-        self.scale = 1.0
         self.CompileModel(self.learning_rate)
         for i in range(self.num_iter):
             if hvd.rank()==0:print("ITERATION: {}".format(i + 1))

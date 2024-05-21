@@ -33,6 +33,8 @@ def load_data(flags):
     elif flags.dataset == 'jetnet150':
         test = utils.JetNetDataLoader(os.path.join(flags.folder,'JetNet','test_150.h5'),big=True)
         
+    elif flags.dataset == 'eic':
+        test = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','train_150.h5'))
     elif flags.dataset == 'jetnet30':
         test = utils.JetNetDataLoader(os.path.join(flags.folder,'JetNet','test_30.h5'))
         
@@ -73,24 +75,23 @@ def main():
     test = load_data(flags)
     parts, jets = process_particles(test)
 
+    print("number of particles", parts.shape[1])
     print('particles mean',np.mean(parts,(0,1)))
     print('particles std',np.std(parts,(0,1)))
     
     print('jets mean',np.mean(jets,0))
     print('jets std',np.std(jets,0))
-    
-    part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($1 - p_{Trel}$)','log($p_{T}$)','log($1 - E_{rel}$)','log($E$)','$\Delta$R']
-    jet_names = ['Jet p$_{T}$ [GeV]', 'Jet $\eta$', 'Jet Mass [GeV]','Multiplicity']
-    
-    for feat in range(len(jet_names)):
+        
+    for feat in range(len(test.jet_names)):
         flat = jets[:, feat]
-        fig, gs, _ = plot_utils.HistRoutine({'{}'.format(flags.dataset): flat}, jet_names[feat], 'Normalized Events', plot_ratio=False, reference_name='{}'.format(flags.dataset))
+        fig, gs, _ = plot_utils.HistRoutine({'{}'.format(flags.dataset): flat}, test.jet_names[feat], 'Normalized Events', plot_ratio=False, reference_name='{}'.format(flags.dataset))
         fig.savefig(f"{flags.plot_folder}/jets_{flags.dataset}_{feat}.pdf", bbox_inches='tight')
-    
-    for feat in range(len(part_names)):
+
+    mask = parts[:, :, 0].reshape(-1) != 0
+    for feat in range(len(test.part_names)):
         flat = parts[:, :, feat].reshape(-1)
-        flat = flat[flat != 0]
-        fig, gs, _ = plot_utils.HistRoutine({'{}'.format(flags.dataset): flat}, part_names[feat], 'Normalized Events', plot_ratio=False, reference_name='{}'.format(flags.dataset))
+        flat = flat[mask]
+        fig, gs, _ = plot_utils.HistRoutine({'{}'.format(flags.dataset): flat}, test.part_names[feat], 'Normalized Events', plot_ratio=False, reference_name='{}'.format(flags.dataset))
         fig.savefig(f"{flags.plot_folder}/parts_{flags.dataset}_{feat}.pdf", bbox_inches='tight')
 
 if __name__ == "__main__":
