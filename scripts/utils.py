@@ -120,16 +120,16 @@ class DataLoader:
         
         return tf.data.Dataset.zip((tf_zip,tf_y)).cache().shuffle(self.batch_size*100).batch(self.batch_size).prefetch(tf.data.AUTOTUNE)
 
-    def load_data(self,path, batch_size=512,rank=0,size=1):
+    def load_data(self,path, batch_size=512,rank=0,size=1,nevts=None):
         # self.path = path
 
-        self.X = h5.File(self.path,'r')['data'][rank::size]
-        self.y = h5.File(self.path,'r')['pid'][rank::size]
-        self.jet = h5.File(self.path,'r')['jet'][rank::size]
+        self.X = h5.File(self.path,'r')['data'][rank:nevts:size]
+        self.y = h5.File(self.path,'r')['pid'][rank:nevts:size]
+        self.jet = h5.File(self.path,'r')['jet'][rank:nevts:size]
         self.mask = self.X[:,:,2]!=0
 
         # self.batch_size = batch_size
-        self.nevts = h5.File(self.path,'r')['data'].shape[0]
+        self.nevts = h5.File(self.path,'r')['data'].shape[0] if nevts is None else nevts
         self.num_part = self.X.shape[1]
         self.num_jet = self.jet.shape[1]
 
@@ -453,6 +453,29 @@ class TopDataLoader(DataLoader):
         self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
         self.files = [path]
 
+class TauDataLoader(DataLoader):    
+    def __init__(self, path, batch_size=512,rank=0,size=1,nevts=None):
+        super().__init__(path, batch_size, rank, size)
+
+        self.mean_part = [ 0.0, 0.0, -4.68198519e-02,  2.20178221e-01,
+                                -7.48168704e-02,  2.56480441e-01,  0.0,
+                                0.0, 0.0,  0.0,  0.0,  0.0, 0.0]
+        self.std_part =  [0.03927566, 0.04606768, 0.25982114,
+                               0.82466037, 0.7541279,  0.86455974,1.0,
+                               1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        self.mean_jet = [6.16614813e+01, 2.05619964e-03, 3.52885518e+00, 4.28755680e+00]
+        self.std_jet  = [34.22578952,  0.68952567,  4.54982729,  3.20547624]
+
+        self.load_data(path, batch_size,rank,size,nevts = nevts)
+
+        self.num_pad = 0
+        self.num_feat = self.X.shape[2] + self.num_pad #missing inputs
+        
+        self.num_classes = self.y.shape[1]
+        self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
+        self.files = [path]
+
+        
 class AtlasDataLoader(DataLoader):    
     def __init__(self, path, batch_size=512,rank=0,size=1,is_small=False):
         super().__init__(path, batch_size, rank, size)

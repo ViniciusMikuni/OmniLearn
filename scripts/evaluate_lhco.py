@@ -10,6 +10,7 @@ from PET_lhco import PET_lhco, Classifier
 import utils
 import plot_utils
 import matplotlib.pyplot as plt
+
 import logging
 
 # Setup logging
@@ -32,7 +33,6 @@ def parse_arguments():
     parser.add_argument("--simple", action='store_true', help="Use simplified head model")
     parser.add_argument("--talking_head", action='store_true', help="Use talking head attention")
     parser.add_argument("--layer_scale", action='store_true', help="Use layer scale in the residual connections")
-    parser.add_argument("--skip_classifier", action='store_true', help="Skip metric calculation")
     parser.add_argument("--sample", action='store_true', help="Sample from trained model")
     parser.add_argument("--weighted", action='store_true', help="Load weights to correct model prediction")
     parser.add_argument("--plot_folder", default="../plots", help="Folder to save the outputs")
@@ -55,6 +55,7 @@ def get_features(p, j):
     return new_p * mask[:, :, :, None]
 
 def plot(data,title,plot_folder,names,weights=None):
+    
     for ivar in range(len(names)):
         feed_dict = {}
         for sample in data:
@@ -71,12 +72,11 @@ def plot(data,title,plot_folder,names,weights=None):
                                           plot_ratio=True,
                                           reference_name='true',
                                           ylabel= 'Normalized entries')
-        
-        ax0 = plt.subplot(gs[0])     
 
         if not os.path.exists(plot_folder):
             os.makedirs(plot_folder)
-        fig.savefig('{}/lhco_{}_{}.pdf'.format(plot_folder,title,ivar),bbox_inches='tight')
+            
+        fig.savefig('{}/lhco_{}_{}.pdf'.format(plot_folder,title,ivar))
 
 
 def load_data_sample(flags):
@@ -184,7 +184,7 @@ def main():
 
         logger.info("Plotting particles.")
         title = 'part_{}'.format('SR' if flags.SR else 'SB')
-        part_names = ['$\eta_{rel}$', '$phi_rel$', 'log($1 - p_{Trel}$)','log($p_{T}$)','log($1 - E_{rel}$)','log($E$)','$\Delta$R']
+        part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($1 - p_{Trel}$)','log($p_{T}$)','log($1 - E_{rel}$)','log($E$)','$\Delta$R']
         plot(particles,title=title,names = part_names,plot_folder=flags.plot_folder)
     
 if __name__ == '__main__':

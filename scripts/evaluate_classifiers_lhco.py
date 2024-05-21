@@ -56,7 +56,7 @@ def print_metrics(y_pred,y, thresholds,multi_label=False):
     tpr=tpr[fpr>1e-4]
     fpr=fpr[fpr>1e-4]
     sic = np.ma.divide(tpr,np.sqrt(fpr)).filled(0)
-    # print("Max SIC: {}".format(np.max(sic)))
+    print("Max SIC: {}".format(np.max(sic)))
     return np.max(sic), auc
 
 
@@ -66,13 +66,14 @@ def evaluate_existing_results(flags, folder_name, threshold):
     sic, aucs = np.zeros((len(signal_values), max_nid)), np.zeros((len(signal_values), max_nid))
     for isig, nsig in tqdm(enumerate(signal_values), total=len(signal_values), desc='Processing Signals'):
         for nid in range(max_nid):
+            print(nid)
             add_string = f'_SR_{nsig}' + ('_ideal' if flags.ideal else '') + (f'_{nid}' if nid > 0 else '')
             npy_file = os.path.join(flags.folder, folder_name, 'npy', f'{utils.get_model_name(flags, fine_tune=flags.fine_tune, add_string=add_string)}'.replace('.h5','.npy'))
             data = np.load(npy_file, allow_pickle=True)
             sic[isig, nid], aucs[isig, nid] = print_metrics(data.item()['pred'],
                                                             data.item()['y'], threshold)
 
-    display_statistics(sic, aucs)
+    display_statistics(np.sort(sic,-1), np.sort(aucs,-1))
 
 def generate_and_save_results(flags, test, folder_name):
     add_string = f'_SR_{flags.nsig}' + ('_ideal' if flags.ideal else '') + (f'_{flags.nid}' if flags.nid > 0 else '')

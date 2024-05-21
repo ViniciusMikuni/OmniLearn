@@ -2,11 +2,14 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
-import matplotlib.ticker as mtick
+
 
 line_style = {
     'top_fine_tune':'dotted',
     'top':'-',
+    'tau_fine_tune':'dotted',
+    'tau':'-',
+
     'qg_fine_tune':'dotted',
     'qg':'-',
     'cms_fine_tune':'dotted',
@@ -59,6 +62,8 @@ line_style = {
 colors = {
     'top_fine_tune':'#7570b3',
     'top':'#7570b3',
+    'tau_fine_tune':'#7570b3',
+    'tau':'#7570b3',
     'qg_fine_tune':'#d95f02',
     'qg':'#d95f02',
     'jetnet30_fine_tune':'#1b9e77',
@@ -105,6 +110,8 @@ colors = {
 name_translate = {
     'top_fine_tune':'Top tagging OmniLearn',
     'top':'Top tagging',
+    'tau_fine_tune':'Tau tagging OmniLearn',
+    'tau':'Tau tagging',
     'qg_fine_tune':'Quark/Gluon OmniLearn',
     'qg':'Quark/Gluon',
     'jetnet30_fine_tune':'JetNet30 OmniLearn',
@@ -153,7 +160,10 @@ name_translate = {
 
 
 def plot(jet1,jet2,flav1,flav2,nplots,title,plot_folder,is_big,names):
-        
+    var_names = ['Jet p$_{T}$ [GeV]', 'Jet $\eta$','Jet Mass [GeV]','Multiplicity']
+    if nplots ==3:
+        var_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($1 - p_{Trel}$)']
+    
     for ivar in range(nplots):        
         for i,unique in enumerate(np.unique(np.argmax(flav1,-1))):
             mask1 = np.argmax(flav1,-1)== unique
@@ -165,7 +175,7 @@ def plot(jet1,jet2,flav1,flav2,nplots,title,plot_folder,is_big,names):
             }
             
             if i == 0:                            
-                fig,gs,binning = HistRoutine(feed_dict,xlabel="{}".format(i),
+                fig,gs,binning = HistRoutine(feed_dict,xlabel=var_names[ivar],
                                              plot_ratio=False,
                                              reference_name='{}_truth'.format(names[unique]),
                                              ylabel= 'Normalized entries')
@@ -254,11 +264,6 @@ def PlotRoutine(feed_dict,xlabel='',ylabel='',reference_name='gen',plot_ratio = 
         
     return fig,ax0
 
-class ScalarFormatterClass(mtick.ScalarFormatter):
-    #https://www.tutorialspoint.com/show-decimal-places-and-scientific-notation-on-the-axis-of-a-matplotlib-plot
-    def _set_format(self):
-        self.format = "%1.1f"
-
 
 def FormatFig(xlabel,ylabel,ax0):
     ax0.set_xlabel(xlabel,fontsize=20)
@@ -288,7 +293,8 @@ def HistRoutine(feed_dict,
     if plot_ratio:
         plt.tick_params(axis='x', labelbottom=False)
         ax1 = plt.subplot(gs[1],sharex=ax0)
-    
+
+        
     if binning is None:
         binning = np.linspace(np.quantile(feed_dict[reference_name],0.01),np.quantile(feed_dict[reference_name],0.99),50)
         
@@ -334,6 +340,8 @@ def HistRoutine(feed_dict,
         ax0.set_ylim(0,1.3*maxy)
 
     ax0.legend(loc=label_loc,fontsize=16,ncol=2)
+    ax0.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+    
     if plot_ratio:
         FormatFig(xlabel = "", ylabel = ylabel,ax0=ax0) 
         plt.ylabel('Ratio to Truth')

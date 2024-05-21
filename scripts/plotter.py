@@ -21,7 +21,9 @@ def load_data(flags):
     """Load data based on dataset using specified data loaders and file naming conventions."""
     if flags.dataset == 'top':
         test = utils.TopDataLoader(os.path.join(flags.folder,'TOP', 'test_ttbar.h5'))
-        
+
+    if flags.dataset == 'tau':
+        test = utils.TauDataLoader(os.path.join(flags.folder,'TAU', 'test_tau.h5'))
     elif flags.dataset == 'qg':
         test = utils.QGDataLoader(os.path.join(flags.folder,'QG', 'test_qg.h5'))
         
