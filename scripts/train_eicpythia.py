@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Train the PET model on EIC Pythia datasets.")
-    parser.add_argument("--dataset", type=str, default="jetnet150", help="Dataset to use")
+    parser.add_argument("--dataset", type=str, default="eic", help="Dataset to use")
     parser.add_argument("--folder", type=str, default="/pscratch/sd/v/vmikuni/PET/", help="Folder containing input files")
     parser.add_argument("--mode", type=str, default="generator", help="Loss type to train the model")
     parser.add_argument("--batch", type=int, default=128, help="Batch size")
@@ -40,12 +40,8 @@ def parse_arguments():
     return parser.parse_args()
 
 def get_data_loader(flags):
-    if flags.dataset == 'jetnet150':
-        train = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','train_150.h5'), flags.batch, hvd.rank(), hvd.size(), big=True)
-        val = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','test_150.h5'), flags.batch, hvd.rank(), hvd.size(), big=True)
-    elif flags.dataset == 'jetnet30':
-        train = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','train_30.h5'), flags.batch, hvd.rank(), hvd.size())
-        val = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','test_30.h5'), flags.batch, hvd.rank(), hvd.size())
+    train = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','train_eic.h5'), flags.batch, hvd.rank(), hvd.size())
+    val = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','val_eic.h5'), flags.batch, hvd.rank(), hvd.size())    
     return train, val
 
 def configure_optimizers(flags, train_loader,lr_factor = 1.0):
@@ -78,18 +74,17 @@ def main():
 
     
     model = PET_eicpythia(num_feat=train_loader.num_feat,
-                       num_jet=train_loader.num_jet,
-                       num_classes=train_loader.num_classes,
-                       num_part=train_loader.num_part,
-                       local=flags.local,
-                       num_layers=flags.num_layers,
-                       drop_probability=flags.drop_probability,
-                       simple=flags.simple, layer_scale=flags.layer_scale,
-                       talking_head=flags.talking_head,
-                       mode=flags.mode,
-                       model_name = model_name,
-                       fine_tune=flags.fine_tune
-                       )
+                          num_jet=train_loader.num_jet,
+                          num_part=train_loader.num_part,
+                          local=flags.local,
+                          num_layers=flags.num_layers,
+                          drop_probability=flags.drop_probability,
+                          simple=flags.simple, layer_scale=flags.layer_scale,
+                          talking_head=flags.talking_head,
+                          mode=flags.mode,
+                          model_name = model_name,
+                          fine_tune=flags.fine_tune
+                          )
 
     optimizer_body = configure_optimizers(flags, train_loader, lr_factor=flags.lr_factor if flags.fine_tune else 1)
     optimizer_head = configure_optimizers(flags, train_loader)

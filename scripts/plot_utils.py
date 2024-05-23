@@ -45,7 +45,8 @@ line_style = {
     'w_truth':'-',
     'w_gen':'dotted',
 
-
+    'eic_truth':'-',
+    'eic_gen':'dotted',
     
     'true':'-',
     'gen':'dotted',
@@ -102,7 +103,10 @@ colors = {
     'atlas_small':'#7570b3',
     'true':'black',
     'gen':'#1b9e77',
-
+    
+    'eic_truth':'#1b9e77',
+    'eic_gen':'#1b9e77',
+    
     'herwig': 'black',
     'pythia':'darkorange',
     'pythia_unfolded_baseline':'red',
@@ -153,6 +157,8 @@ name_translate = {
     'w_truth':'W bosons',
     'w_gen':'Generated W bosons',
 
+    'eic_truth':'EIC Particles',
+    'eic_gen':'Generated EIC Particles',
         
     'jetclass':'JetClass',
 

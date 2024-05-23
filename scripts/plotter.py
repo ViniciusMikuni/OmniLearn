@@ -34,7 +34,7 @@ def load_data(flags):
         test = utils.JetNetDataLoader(os.path.join(flags.folder,'JetNet','test_150.h5'),big=True)
         
     elif flags.dataset == 'eic':
-        test = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','train_150.h5'))
+        test = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','train_eic.h5'))
     elif flags.dataset == 'jetnet30':
         test = utils.JetNetDataLoader(os.path.join(flags.folder,'JetNet','test_30.h5'))
         
@@ -73,8 +73,10 @@ def main():
     plot_utils.SetStyle()
     
     test = load_data(flags)
+
     parts, jets = process_particles(test)
 
+    print('number of events',parts.shape[0])
     print("number of particles", parts.shape[1])
     print('particles mean',np.mean(parts,(0,1)))
     print('particles std',np.std(parts,(0,1)))

@@ -12,11 +12,7 @@ from sklearn.utils import shuffle
 
 PID_INDEX = 3
 
-labels30 = {
-    'Pythia_eP_10M.h5'
-}
-
-labels150 = {
+labels = {
     'Pythia_eP_10M.h5'
 }
 
@@ -56,7 +52,7 @@ def process(p):
     p[:,0,0] = p[:,0,0]/49.0  # max pT of electron is ~48.0 GeV
 
     print("Line 55, before feature shuffle\n", p[1,:3])
-    new_p[:,:,2] = np.ma.log(1.0 - p[:,:,0]).filled(0)  # pT
+    new_p[:,:,2] = np.ma.log(p[:,:,0]).filled(0)  # pT
     new_p[:,:,0] = p[:,:,1]                             # eta
     new_p[:,:,1] = p[:,:,2]                             # phi
     new_p[:,:,3] = p[:,:,4]                             # z
@@ -158,31 +154,26 @@ def preprocess(path, labels, nevent_max=-1, npart_max=-1):
 if __name__=='__main__':
     parser = OptionParser(usage="%prog [opt]  inputFiles")
     parser.add_option("--folder", type="string", default='/global/cfs/cdirs/m4662/data/', help="Folder containing input files")
-    parser.add_option("--label", type="string", default='150', help="Which dataset to use")
-    parser.add_option("--nevent_max", type="int", default='1_000_000', help="max number of events")
+    parser.add_option("--nevent_max", type="int", default='10_000_000', help="max number of events")
     parser.add_option("--npart_max", type="int", default='30', help="max number of particses per event")
     (flags, args) = parser.parse_args()
 
-    if '150' in flags.label:
-        label = labels150
-    else:
-        label = labels30
     
-    train, val, test = preprocess(os.path.join(flags.folder, 'EIC_Pythia'),label, flags.nevent_max, flags.npart_max)
+    train, val, test = preprocess(os.path.join(flags.folder, 'EIC_Pythia'),labels, flags.nevent_max, flags.npart_max)
 
-    with h5.File('{}/train_{}.h5'.format(os.path.join(flags.folder, 'EIC_Pythia'),flags.label), "w") as fh5:
+    with h5.File('{}/train_{}.h5'.format(os.path.join(flags.folder, 'EIC_Pythia'),"eic"), "w") as fh5:
         dset = fh5.create_dataset('data', data=train['data'])
         dset = fh5.create_dataset('pid', data=train['pid'])
         dset = fh5.create_dataset('jet', data=train['jet'])
 
 
-    with h5.File('{}/test_{}.h5'.format(os.path.join(flags.folder, 'EIC_Pythia'),flags.label), "w") as fh5:
+    with h5.File('{}/test_{}.h5'.format(os.path.join(flags.folder, 'EIC_Pythia'),"eic"), "w") as fh5:
         dset = fh5.create_dataset('data', data=test['data'])
         dset = fh5.create_dataset('pid', data=test['pid'])
         dset = fh5.create_dataset('jet', data=test['jet'])
 
 
-    with h5.File('{}/val_{}.h5'.format(os.path.join(flags.folder, 'EIC_Pythia'),flags.label), "w") as fh5:
+    with h5.File('{}/val_{}.h5'.format(os.path.join(flags.folder, 'EIC_Pythia'),"eic"), "w") as fh5:
         dset = fh5.create_dataset('data', data=val['data'])
         dset = fh5.create_dataset('pid', data=val['pid'])
         dset = fh5.create_dataset('jet', data=val['jet'])

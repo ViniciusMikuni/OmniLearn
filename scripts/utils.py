@@ -42,6 +42,7 @@ def load_pickle(folder,f):
 def revert_npart(npart, name='30'):
     # Reverse the preprocessing to recover the particle multiplicity
     stats = {'30': (29.03636, 2.7629626),
+             '12': (5.05597317, 2.25117321),
              '150': (49.398304, 20.772636),
              '279': (57.28675, 29.41252836)}
     mean, std = stats[name]
@@ -123,10 +124,10 @@ class DataLoader:
         
         return tf.data.Dataset.zip((tf_zip,tf_y)).cache().shuffle(self.batch_size*100).batch(self.batch_size).prefetch(tf.data.AUTOTUNE)
 
-    def load_data(self,path, batch_size=512,rank=0,size=1,nevts=None):
+    def load_data(self,path, batch_size=512,rank=0,size=1,nevts=None,max_part=None):
         # self.path = path
 
-        self.X = h5.File(self.path,'r')['data'][rank:nevts:size]
+        self.X = h5.File(self.path,'r')['data'][rank:nevts:size,:max_part]
         self.y = h5.File(self.path,'r')['pid'][rank:nevts:size]
         self.jet = h5.File(self.path,'r')['jet'][rank:nevts:size]
         self.mask = self.X[:,:,2]!=0
@@ -163,20 +164,20 @@ class DataLoader:
 class EicPythiaDataLoader(DataLoader):
     '''based off jetnet. No jets, just events and particles'''
 
-    def __init__(self, path, batch_size=512,rank=0,size=1,big=False):
+    def __init__(self, path, batch_size=512,rank=0,size=1):
         super().__init__(path, batch_size, rank, size)
-        if big:
-            self.mean_part = [0.06974325, 0.015526171, 0.0014591367, 0.0075381063, 1.0]
-            self.std_part = [0.6292602, 0.44993857, 1.7951037, 0.071400896, 0.0]
+        self.mean_part = [ 0.07165612 ,-0.00034205 ,-0.21724686  ,0.03491847,
+                          0.0,0.0,0.0]
+        
+        self.std_part = [0.96629704, 0.57729012, 0.63253326, 0.15052604, 1.0, 1.0, 1.0 ]
             
-            self.mean_jet =  [5.855501]  #event multiplicity
-            self.std_jet  = [2.22327]
-        else:
-            self.mean_part = [0.06974325, 0.015526171, 0.0014591367, 0.0075381063, 1.0]
-            self.std_part = [0.6292602, 0.44993857, 1.7951037, 0.071400896, 0.0]
-            
-            self.mean_jet =  [5.855501]  #event multiplicity
-            self.std_jet  = [2.22327]
+        self.mean_jet =  [5.85479048]  #event multiplicity
+        self.std_jet  = [2.22425587]
+
+        self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($p_{Trel}$)','z',
+                           'is electron','is pion','is kaon']
+        self.jet_names = ['Multiplicity']
+
             
         def add_noise(self,x):
             #Add noise to the event multiplicity
@@ -189,12 +190,17 @@ class EicPythiaDataLoader(DataLoader):
             return (new_x-self.mean_jet)/self.std_jet
 
 
-        self.load_data(path, batch_size,rank,size)
-        self.big = big        
-        self.num_pad = 0
-        self.num_feat = self.X.shape[2] + self.num_pad #missing inputs
+        self.load_data(path, batch_size,rank,size,max_part = 12)
+        #the model is not conditioned
+        self.y = np.zeros((self.X.shape[0],1))
+        if rank ==0:
+            print(f"Loaded dataset with {self.num_part} particles")
+        self.num_feat = self.X.shape[2]
         self.num_classes = self.y.shape[1]
+        self.num_pad = 0
         self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
+        self.files = [path]
+
 
 
 class JetNetDataLoader(DataLoader):
@@ -241,42 +247,6 @@ class JetNetDataLoader(DataLoader):
         self.files = [path]
 
 
-class EicPythiaDataLoader(DataLoader):
-    def __init__(self, path, batch_size=512,rank=0,size=1,big=False):
-        super().__init__(path, batch_size, rank, size)
-        self.mean_part = [0.0, 0.0, -0.035,
-                          2.791,-0.035, 3.03, 0.0,
-                          0.0, 0.0,  0.0,  0.0,  0.0, 0.0]
-        self.std_part = [0.09, 0.09,  0.067, 
-                         1.241, 0.067,1.26,1.0,
-                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-        
-        self.mean_jet =  [1.0458962e+03, 3.6804923e-03, 9.4020386e+01, 2.9036360e+01]
-        self.std_jet  = [123.23525 ,0.7678173 ,43.103817 ,2.76302]
-
-        self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($1 - p_{Trel}$)','z',
-                           'is electron','is pion','is kaon']
-        self.jet_names = ['Multiplicity']
-
-            
-        def add_noise(self,x):
-            #Add noise to the jet multiplicity
-            noise = np.random.uniform(-0.5,0.5,x.shape[0])
-            x[:,-1]+=noise[:,None]
-            return x
-            
-        def preprocess_jet(self,x):
-            new_x = self.add_noise(copy.deepcopy(x))
-            return (new_x-self.mean_jet)/self.std_jet
-
-
-        self.load_data(path, batch_size,rank,size)
-        self.num_feat = self.X.shape[2]
-        self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
-        self.files = [path]
-
-
-        
 
 class LHCODataLoader(DataLoader):
     def __init__(self, path, batch_size=512,rank=0,size=1,

@@ -18,10 +18,9 @@ class PET_eicpythia(keras.Model):
                  num_jet,      
                  num_classes=1,
                  num_part = 150,
-                 num_diffusion = 3,
                  feature_drop = 0.1,
                  projection_dim = 128,
-                 local = True, K = 10,
+                 local = True, K = 3,
                  num_local = 2, 
                  num_layers = 8, num_class_layers=2,
                  num_heads = 4,drop_probability = 0.0,
@@ -30,8 +29,7 @@ class PET_eicpythia(keras.Model):
                  talking_head = False,
                  mode = 'generator',                 
                  fine_tune = False,
-                 model_name = None,
-                 use_mean=False):
+                 model_name = None):
         super(PET_eicpythia, self).__init__()
 
 
@@ -41,15 +39,14 @@ class PET_eicpythia(keras.Model):
         self.max_part = num_part
         self.projection_dim = projection_dim
         self.layer_scale_init = layer_scale_init
-        self.num_steps = 300
-        self.num_diffusion = num_diffusion
+        self.num_steps = 5
         self.ema=0.999
         self.shape = (-1,1,1)
 
         self.model_part  = PET(num_feat=num_feat,
                                num_jet=num_jet,
                                num_classes=num_classes,
-                               local = local,
+                               local = local, K=K,
                                num_layers = num_layers, 
                                drop_probability = drop_probability,
                                simple = simple, layer_scale = layer_scale,
@@ -61,14 +58,7 @@ class PET_eicpythia(keras.Model):
         if fine_tune:
             assert model_name is not None, "ERROR: Model name is necessary if fine tune is on"
             self.model_part.load_weights(model_name,by_name=True,skip_mismatch=True)
-            #self.model_part.ema_body.trainable=False            
-
             
-        if use_mean:
-            self.mean, self.std = self.get_mean()
-        else:
-            self.mean = 0.0
-            self.std = 1.0            
 
         self.body = self.model_part.ema_body        
         self.head = self.model_part.ema_generator_head
@@ -82,12 +72,10 @@ class PET_eicpythia(keras.Model):
         inputs_features = Input(shape=(None, num_feat))
         inputs_points = Input(shape=(None, 2))
 
-
-        x = inputs_mask*(inputs_features-self.mean)/self.std
         
-        output_body = self.body([x,inputs_points,inputs_mask,inputs_time])
+        output_body = self.body([inputs_features,inputs_points,inputs_mask,inputs_time])
         outputs_head = self.head([output_body,inputs_jet,inputs_mask,inputs_time,inputs_cond])
-        outputs = inputs_mask*(self.std*outputs_head + self.mean)
+        outputs = inputs_mask*outputs_head
         
         self.model_part = keras.Model(inputs=[inputs_features,inputs_points,inputs_mask,
                                               inputs_jet,inputs_time,inputs_cond],
@@ -117,51 +105,6 @@ class PET_eicpythia(keras.Model):
         self.loss_tracker = keras.metrics.Mean(name="loss")
         self.loss_part_tracker = keras.metrics.Mean(name="part")
         self.loss_jet_tracker = keras.metrics.Mean(name="jet")
-
-        self.multistep_coefficients = [
-            tf.constant([1], shape=(1, 1, 1, 1), dtype=tf.float32),
-            tf.constant([-1, 3], shape=(2, 1, 1, 1), dtype=tf.float32) / 2,
-            tf.constant([5, -16, 23], shape=(3, 1, 1,1), dtype=tf.float32) / 12,
-            tf.constant([-9, 37, -59, 55], shape=(4, 1,1, 1), dtype=tf.float32)
-            / 24,
-            tf.constant(
-                [251, -1274, 2616, -2774, 1901], shape=(5, 1,1, 1), dtype=tf.float32
-            )
-            / 720,
-        ]
-        
-
-    def get_mean(self):
-        #Mean and std from JetClass pretrained model to be used during fine-tuning
-        mean_pet = tf.constant([0.0, 0.0,-0.0278,
-                                0.0,0.0,0.0,0.0,0.0,
-                                0.0,0.0,0.0,0.0,0.0],
-                               shape=(1, 1, self.num_feat), dtype=tf.float32)
-        std_pet = tf.constant([0.215,0.215,0.070,
-                               1.0,1.0,1.0,1.0,1.0,
-                               1.0,1.0,1.0,1.0,1.0],
-                              shape=(1, 1, self.num_feat), dtype=tf.float32)
-
-        if self.max_part == 150:
-            mean_sample = tf.constant([0.0, 0.0, -0.0217,
-                                       0.0,0.0,0.0,0.0,0.0,
-                                       0.0,0.0,0.0,0.0,0.0],
-                                      shape=(1, 1, self.num_feat), dtype=tf.float32)
-            std_sample =  tf.constant([0.115, 0.115, -0.054,
-                                       1.0,1.0,1.0,1.0,1.0,
-                                       1.0,1.0,1.0,1.0,1.0],
-                                      shape=(1, 1, self.num_feat), dtype=tf.float32)
-        elif self.max_part == 30:
-            mean_sample = tf.constant([0.0, 0.0, -0.035,
-                                       0.0,0.0,0.0,0.0,0.0,
-                                       0.0,0.0,0.0,0.0,0.0],
-                                      shape=(1, 1, self.num_feat), dtype=tf.float32)
-            std_sample = tf.constant([0.09, 0.09,  0.067, 
-                                      1.0,1.0,1.0,1.0,1.0,
-                                      1.0,1.0,1.0,1.0,1.0],
-                                     shape=(1, 1, self.num_feat), dtype=tf.float32)
-
-        return (mean_sample-mean_pet)/std_pet, std_sample/std_pet
 
         
         
@@ -230,38 +173,29 @@ class PET_eicpythia(keras.Model):
     def train_step(self, inputs):
         x,y = inputs
         batch_size = tf.shape(x['input_jet'])[0]
-
+        mask = x['input_mask'][:,:,None]
+        
         with tf.GradientTape(persistent=True) as tape:            
             t = tf.random.uniform((batch_size,1))                
             logsnr, alpha, sigma = self.get_logsnr_alpha_sigma(t)
             
             eps = tf.random.normal((tf.shape(x['input_features'])),
-                                   dtype=tf.float32)*x['input_mask'][:,:,None]
+                                   dtype=tf.float32)*mask
 
-            mask_diffusion = tf.concat([
-                tf.ones_like(eps[:, :, :self.num_diffusion], dtype=tf.bool),
-                tf.zeros_like(eps[:, :, self.num_diffusion:], dtype=tf.bool)
-            ], axis=-1)
-
-            
-            #zero entries not needed
-            eps = tf.where(mask_diffusion, eps, tf.zeros_like(eps))
-                
+                            
             perturbed_x = alpha[:,None]*x['input_features'] + eps * sigma[:,None]
-            perturbed_x = tf.where(mask_diffusion, perturbed_x, tf.zeros_like(perturbed_x))
                         
-            v_pred_part = self.model_part([perturbed_x,
-                                           perturbed_x[:,:,:2],
+            v_pred_part = self.model_part([perturbed_x*mask,
+                                           perturbed_x[:,:,:2]*mask,
                                            x['input_mask'],
                                            x['input_jet'],t,y])
-            v_pred_part = tf.reshape(v_pred_part[:,:,:self.num_diffusion],(tf.shape(v_pred_part)[0], -1))
+            v_pred_part = tf.reshape(v_pred_part,(tf.shape(v_pred_part)[0], -1))
             v_part = alpha[:,None] * eps - sigma[:,None] * x['input_features']
-            v_part = tf.reshape(v_part[:,:,:self.num_diffusion],(tf.shape(v_part)[0], -1))
+            v_part = tf.reshape(v_part,(tf.shape(v_part)[0], -1))
 
 
-            loss_part = tf.reduce_sum(tf.square(v_part-v_pred_part))/(self.num_diffusion*tf.reduce_sum(x['input_mask']))
-            #loss_part = mse(v_part,v_pred_part)
-
+            #Mean but skipping zeros
+            loss_part = tf.reduce_sum(tf.square(v_part-v_pred_part))/(tf.reduce_sum(x['input_mask']))
         
             #Jet model
 
@@ -279,10 +213,9 @@ class PET_eicpythia(keras.Model):
         self.body_optimizer.minimize(loss_part,self.body.trainable_variables,tape=tape)
                    
         trainable_vars = self.model_jet.trainable_variables + self.head.trainable_variables
-        #+self.scaler_input.trainable_variables
         self.optimizer.minimize(loss,trainable_vars,tape=tape)
 
-        
+    
 
         self.loss_tracker.update_state(loss)
         self.loss_part_tracker.update_state(loss_part)
@@ -304,49 +237,45 @@ class PET_eicpythia(keras.Model):
     def test_step(self, inputs):
         x,y = inputs
         batch_size = tf.shape(x['input_jet'])[0]
+        mask = x['input_mask'][:,:,None]
+        
 
         t = tf.random.uniform((batch_size,1))                
         logsnr, alpha, sigma = self.get_logsnr_alpha_sigma(t)
-
+        
         eps = tf.random.normal((tf.shape(x['input_features'])),
-                               dtype=tf.float32)*x['input_mask'][:,:,None]
+                               dtype=tf.float32)*mask
         
-        mask_diffusion = tf.concat([
-            tf.ones_like(eps[:, :, :self.num_diffusion], dtype=tf.bool),
-            tf.zeros_like(eps[:, :, self.num_diffusion:], dtype=tf.bool)
-        ], axis=-1)
-        
-            
-        #zero entries not needed
-        eps = tf.where(mask_diffusion, eps, tf.zeros_like(eps))
-        
+                            
         perturbed_x = alpha[:,None]*x['input_features'] + eps * sigma[:,None]
-        perturbed_x = tf.where(mask_diffusion, perturbed_x, tf.zeros_like(perturbed_x))
         
-        v_pred_part = self.model_part([perturbed_x,
-                                       perturbed_x[:,:,:2],
+        v_pred_part = self.model_part([perturbed_x*mask,
+                                       perturbed_x[:,:,:2]*mask,
                                        x['input_mask'],
                                        x['input_jet'],t,y])
-        v_pred_part = tf.reshape(v_pred_part[:,:,:self.num_diffusion],(tf.shape(v_pred_part)[0], -1))
+        v_pred_part = tf.reshape(v_pred_part,(tf.shape(v_pred_part)[0], -1))
         v_part = alpha[:,None] * eps - sigma[:,None] * x['input_features']
-        v_part = tf.reshape(v_part[:,:,:self.num_diffusion],(tf.shape(v_part)[0], -1))
-        loss_part = tf.reduce_sum(tf.square(v_part-v_pred_part))/(self.num_diffusion*tf.reduce_sum(x['input_mask']))
-        #loss_part = mse(v_part,v_pred_part)
-                
-            
+        v_part = tf.reshape(v_part,(tf.shape(v_part)[0], -1))
+        
+
+        #Mean but skipping zeros
+        loss_part = tf.reduce_sum(tf.square(v_part-v_pred_part))/(tf.reduce_sum(x['input_mask']))
+        
         #Jet model
-
+        
         eps = tf.random.normal((batch_size,self.num_jet),dtype=tf.float32)
-        perturbed_x = alpha*x['input_jet'] + eps * sigma        
+        perturbed_x = alpha*x['input_jet'] + eps * sigma            
         v_pred = self.model_jet([perturbed_x,t,y])
-
+        
         v_jet = alpha * eps - sigma * x['input_jet']
         loss_jet = tf.reduce_mean(tf.square(v_pred-v_jet))
-            
-        self.loss_tracker.update_state(loss_part)
+        
+        loss = loss_jet + loss_part
+           
+
+        self.loss_tracker.update_state(loss)
         self.loss_part_tracker.update_state(loss_part)
-        self.loss_jet_tracker.update_state(loss_jet)
-            
+        self.loss_jet_tracker.update_state(loss_jet)                    
         return {m.name: m.result() for m in self.metrics}
             
     def call(self,x):        
@@ -361,7 +290,6 @@ class PET_eicpythia(keras.Model):
             
         splits = np.array_split(cond, nsplit)
         
-        #iterable = tqdm(splits,desc='Processing Splits',total=len(splits)) if use_tqdm else splits
         for i, split in tqdm(enumerate(splits), total=len(splits), desc='Processing Splits') if use_tqdm else enumerate(splits):
             if jets is not None:
                 jet = jet_split[i]
@@ -376,7 +304,7 @@ class PET_eicpythia(keras.Model):
             jet_info.append(jet)
             
             nparts = np.expand_dims(np.clip(utils.revert_npart(jet[:,-1],name=str(self.max_part)),
-                                            5,self.max_part),-1) #5 is the minimum in the datasets used for training
+                                            1,self.max_part),-1) #5 is the minimum in the datasets used for training
 
             mask = np.expand_dims(
                 np.tile(np.arange(self.max_part),(nparts.shape[0],1)) < np.tile(nparts,(1,self.max_part)),-1)
@@ -399,13 +327,6 @@ class PET_eicpythia(keras.Model):
         a = tf.math.atan(tf.exp(-0.5 * logsnr_min)) - b
         return -2. * tf.math.log(tf.math.tan(a * tf.cast(t,tf.float32) + b))
 
-    def inv_logsnr_schedule_cosine(self,logsnr, logsnr_min=-10., logsnr_max=20.):
-        #if self.ll_training:return (logsnr_max - logsnr)/(logsnr_max - logsnr_min)
-        b = tf.math.atan(tf.exp(-0.5 * logsnr_max))
-        a = tf.math.atan(tf.exp(-0.5 * logsnr_min)) - b
-        return tf.math.atan(tf.exp(-0.5 * tf.cast(logsnr,tf.float32)))/a -b/a
-
-
     def get_logsnr_alpha_sigma(self,time,shape=None):
         logsnr = self.logsnr_schedule_cosine(time)
         alpha = tf.sqrt(tf.math.sigmoid(logsnr))
@@ -420,57 +341,9 @@ class PET_eicpythia(keras.Model):
 
 
     @tf.function
-    def NoisySampler(self,
-                     cond,
-                     model,
-                     data_shape=None,
-                     const_shape=None,
-                     jet=None,
-                     w = 0.1,
-                     num_steps = 100,
-                     mask=None):
-
-        batch_size = cond.shape[0]
-        x = self.prior_sde(data_shape)
-        if jet is not None:
-            mask_diffusion = tf.concat([
-                tf.ones_like(x[:, :, :self.num_diffusion], dtype=tf.bool),
-                tf.zeros_like(x[:, :, self.num_diffusion:], dtype=tf.bool)
-            ], axis=-1)
-
-        for time_step in tf.range(num_steps, 0, delta=-1):
-            t = tf.ones((batch_size, 1), dtype=tf.int32) * time_step / num_steps
-            logsnr_t, alpha, sigma = self.get_logsnr_alpha_sigma(t,shape=const_shape)
-            logsnr_s, alpha_, sigma_ = self.get_logsnr_alpha_sigma(tf.ones((batch_size, 1), dtype=tf.int32) * (time_step - 1) / self.num_steps,shape=const_shape)
-
-            if jet is None:
-                v = model([x, t, cond], training=False)
-                #- w*model([x, sigma**2, tf.zeros_like(cond)], training=False)
-            else:
-                x = tf.where(mask_diffusion, x*mask, tf.zeros_like(x))                
-                model_body, model_head = model
-                v = self.evaluate_models(model_head,model_body,x,jet,mask,t,cond,w)
-            
-            pred_x = alpha * x - sigma * v
-            
-            alpha_st = tf.math.sqrt((1. + tf.exp(-logsnr_t)) / (1. + tf.exp(-logsnr_s)))
-            r = tf.exp(logsnr_t - logsnr_s)  # SNR(t)/SNR(s)
-            one_minus_r = -tf.math.expm1(logsnr_t - logsnr_s)  # 1-SNR(t)/SNR(s)
-            
-            mean = r * alpha_st * x + one_minus_r * alpha_ * pred_x
-                      
-            std = tf.sqrt(one_minus_r) * sigma
-            eps = tf.random.normal(data_shape,dtype=tf.float32)
-            x = mean + std*eps
-            
-        return pred_x
-
-    
-
-    @tf.function
     def second_order_correction(self,time_step,x,pred_images,pred_noises,
                                 alphas,sigmas,w,
-                                cond,model,jet=None,masks=None,
+                                cond,model,jet=None,mask=None,
                                 num_steps=100,
                                 second_order_alpha=0.5,shape=None):
         step_size = 1.0/num_steps
@@ -482,8 +355,7 @@ class PET_eicpythia(keras.Model):
             v = model([alpha_noisy_images, t,cond],training=False)
             #- w*model([alpha_noisy_images,t,tf.zeros_like(cond)],training=False)
         else:
-            mask,mask_diffusion = masks
-            alpha_noisy_images = tf.where(mask_diffusion, alpha_noisy_images*mask, tf.zeros_like(x))
+            alpha_noisy_images *= mask 
             model_body, model_head = model
             v = self.evaluate_models(model_head,model_body,
                                      alpha_noisy_images,
@@ -501,10 +373,10 @@ class PET_eicpythia(keras.Model):
         return mean,eps
     
     def evaluate_models(self,head,body,x,jet,mask,t,cond,w = 0.0):
-        x_in = mask*(x-self.mean)/self.std
+        x_in = mask*x
         v = body([x_in,x[:,:,:2],mask,t], training=False)
-        v = (1.0+w)*head([v,jet,mask,t,cond],training=False)  - w*head([v,jet,mask,t,tf.zeros_like(cond)],training=False)
-        return mask*(self.std*v + self.mean)
+        v = head([v,jet,mask,t,cond],training=False)
+        return mask*v
 
 
            
@@ -534,12 +406,6 @@ class PET_eicpythia(keras.Model):
 
         batch_size = cond.shape[0]
         x = self.prior_sde(data_shape)
-        if jet is not None:
-            mask_diffusion = tf.concat([
-                tf.ones_like(x[:, :, :self.num_diffusion], dtype=tf.bool),
-                tf.zeros_like(x[:, :, self.num_diffusion:], dtype=tf.bool)
-            ], axis=-1)
-
             
         prev_pred_noises = []  # only required for multistep sampling
         for time_step in tf.range(num_steps, 0, delta=-1):
@@ -548,18 +414,16 @@ class PET_eicpythia(keras.Model):
             logsnr_, alpha_, sigma_ = self.get_logsnr_alpha_sigma(tf.ones((batch_size, 1), dtype=tf.int32) * (time_step - 1) / num_steps,shape=const_shape)
             if jet is None:
                 v = model([x, t, cond], training=False)                
-                masks = None
             else:
-                x = tf.where(mask_diffusion, x*mask, tf.zeros_like(x))
+                x *= mask
                 model_body, model_head = model
                 v = self.evaluate_models(model_head,model_body,x,jet,mask,t,cond,w)
-                masks = [mask,mask_diffusion]
                                                                                 
             mean = alpha * x - sigma * v
             eps = v * alpha + x * sigma
             mean,eps = self.second_order_correction(t,x,mean,eps,
                                                     alpha,sigma,w,
-                                                    cond,model,jet,masks,
+                                                    cond,model,jet,mask,
                                                     num_steps=num_steps,
                                                     shape=const_shape
                                                     )
