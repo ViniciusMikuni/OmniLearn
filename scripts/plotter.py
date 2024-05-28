@@ -75,7 +75,6 @@ def main():
     test = load_data(flags)
 
     parts, jets = process_particles(test)
-
     print('number of events',parts.shape[0])
     print("number of particles", parts.shape[1])
     print('particles mean',np.mean(parts,(0,1)))

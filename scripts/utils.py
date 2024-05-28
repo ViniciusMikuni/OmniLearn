@@ -42,7 +42,7 @@ def load_pickle(folder,f):
 def revert_npart(npart, name='30'):
     # Reverse the preprocessing to recover the particle multiplicity
     stats = {'30': (29.03636, 2.7629626),
-             '12': (5.05597317, 2.25117321),
+             '11': (5.05597317, 2.25117321),
              '150': (49.398304, 20.772636),
              '279': (57.28675, 29.41252836)}
     mean, std = stats[name]
@@ -124,10 +124,10 @@ class DataLoader:
         
         return tf.data.Dataset.zip((tf_zip,tf_y)).cache().shuffle(self.batch_size*100).batch(self.batch_size).prefetch(tf.data.AUTOTUNE)
 
-    def load_data(self,path, batch_size=512,rank=0,size=1,nevts=None,max_part=None):
+    def load_data(self,path, batch_size=512,rank=0,size=1,nevts=None):
         # self.path = path
 
-        self.X = h5.File(self.path,'r')['data'][rank:nevts:size,:max_part]
+        self.X = h5.File(self.path,'r')['data'][rank:nevts:size]
         self.y = h5.File(self.path,'r')['pid'][rank:nevts:size]
         self.jet = h5.File(self.path,'r')['jet'][rank:nevts:size]
         self.mask = self.X[:,:,2]!=0
@@ -157,7 +157,7 @@ class DataLoader:
         new_x = self.std_jet*x+self.mean_jet
         #Convert multiplicity back into integers
         new_x[:,-1] = np.round(new_x[:,-1])
-        new_x[:,-1] = np.clip(new_x[:,-1],2,self.num_part)
+        new_x[:,-1] = np.clip(new_x[:,-1],1,self.num_part)
         return new_x
 
 
@@ -166,17 +166,15 @@ class EicPythiaDataLoader(DataLoader):
 
     def __init__(self, path, batch_size=512,rank=0,size=1):
         super().__init__(path, batch_size, rank, size)
-        self.mean_part = [ 0.07165612 ,-0.00034205 ,-0.21724686  ,0.03491847,
-                          0.0,0.0,0.0]
-        
-        self.std_part = [0.96629704, 0.57729012, 0.63253326, 0.15052604, 1.0, 1.0, 1.0 ]
-            
-        self.mean_jet =  [5.85479048]  #event multiplicity
-        self.std_jet  = [2.22425587]
 
-        self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($p_{Trel}$)','z',
+        self.mean_part = [-6.57722423e-01, -1.32635604e-04, -5.84171146e-02,  0.0, 0.0, 0.0]
+        self.std_part = [1.43289689, 0.95137615, 0.15511784, 1.0, 1.0, 1.0 ]
+        self.mean_jet = [ 6.48229788, -2.52708796,  4.83428984]
+        self.std_jet  = [2.82288916, 0.4437837,  2.17167432]
+        
+        self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log(1 - $p_{Trel}$)',
                            'is electron','is pion','is kaon']
-        self.jet_names = ['Multiplicity']
+        self.jet_names = ['electron $p_T$ [GeV]','electron $\eta$','Multiplicity']
 
             
         def add_noise(self,x):
@@ -190,7 +188,7 @@ class EicPythiaDataLoader(DataLoader):
             return (new_x-self.mean_jet)/self.std_jet
 
 
-        self.load_data(path, batch_size,rank,size,max_part = 12)
+        self.load_data(path, batch_size,rank,size)
         #the model is not conditioned
         self.y = np.zeros((self.X.shape[0],1))
         if rank ==0:
@@ -200,6 +198,17 @@ class EicPythiaDataLoader(DataLoader):
         self.num_pad = 0
         self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
         self.files = [path]
+
+    def revert_preprocess(self,x,mask):                
+        num_feat = x.shape[-1]        
+        new_part = mask[:,:, None]*(x[:,:,:num_feat]*self.std_part[:num_feat] + self.mean_part[:num_feat])
+        #one hot encode the pids again
+        max_indices = np.argmax(new_part[:,:,-3:], axis=-1)
+        pids = np.zeros_like(new_part[:,:,-3:])
+        pids[np.arange(new_part.shape[0])[:, None], np.arange(new_part.shape[1]), max_indices] = 1
+        new_part[:,:,-3:] = pids
+        
+        return  new_part
 
 
 

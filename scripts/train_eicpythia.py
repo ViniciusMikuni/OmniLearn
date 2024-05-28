@@ -26,8 +26,8 @@ def parse_arguments():
     parser.add_argument("--dataset", type=str, default="eic", help="Dataset to use")
     parser.add_argument("--folder", type=str, default="/pscratch/sd/v/vmikuni/PET/", help="Folder containing input files")
     parser.add_argument("--mode", type=str, default="generator", help="Loss type to train the model")
-    parser.add_argument("--batch", type=int, default=128, help="Batch size")
-    parser.add_argument("--epoch", type=int, default=300, help="Max epoch")
+    parser.add_argument("--batch", type=int, default=512, help="Batch size")
+    parser.add_argument("--epoch", type=int, default=200, help="Max epoch")
     parser.add_argument("--lr", type=float, default=3e-5, help="Learning rate")
     parser.add_argument("--lr_factor", type=float, default=1.0, help="Factor to adjust learning rate")
     parser.add_argument("--fine_tune", action='store_true', default=False, help='Fine tune a model')
@@ -41,7 +41,7 @@ def parse_arguments():
 
 def get_data_loader(flags):
     train = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','train_eic.h5'), flags.batch, hvd.rank(), hvd.size())
-    val = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','val_eic.h5'), flags.batch, hvd.rank(), hvd.size())    
+    val = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','test_eic.h5'), flags.batch, hvd.rank(), hvd.size())    
     return train, val
 
 def configure_optimizers(flags, train_loader,lr_factor = 1.0):

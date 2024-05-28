@@ -20,7 +20,7 @@ class PET_eicpythia(keras.Model):
                  num_part = 150,
                  feature_drop = 0.1,
                  projection_dim = 128,
-                 local = True, K = 3,
+                 local = True, K = 5,
                  num_local = 2, 
                  num_layers = 8, num_class_layers=2,
                  num_heads = 4,drop_probability = 0.0,
@@ -39,7 +39,7 @@ class PET_eicpythia(keras.Model):
         self.max_part = num_part
         self.projection_dim = projection_dim
         self.layer_scale_init = layer_scale_init
-        self.num_steps = 5
+        self.num_steps = 500
         self.ema=0.999
         self.shape = (-1,1,1)
 

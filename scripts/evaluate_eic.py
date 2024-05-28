@@ -35,7 +35,7 @@ def parse_arguments():
     return parser.parse_args()
 
 def get_data_info(flags):
-    test = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','test_eic.h5'), hvd.rank(), hvd.size())            
+    test = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','val_eic.h5'), rank=hvd.rank(), size=hvd.size())            
     return test
 
 
@@ -62,7 +62,7 @@ def sample_data(test, model, flags, sample_name):
     """ Sample data using the model and save to file. """
     y, j = test.y[:], None
     
-    nsplit = 100
+    nsplit = 10
     p, j = model.generate(y, jets=j, nsplit=nsplit,use_tqdm=hvd.rank()==0)
     p = test.revert_preprocess(p, p[:, :, 2] != 0)
     j = test.revert_preprocess_jet(j)
@@ -84,7 +84,6 @@ def get_generated_data(sample_name):
         
     def undo_pt(x):
         x[:,:,2] = 1.0 - np.exp(particles_gen[:,:,2])
-        x[:,:,2] = np.clip(x[:,:,2],0.0,1.0)
         return x
 
     mask_gen = particles_gen[:,:,2]!=0
@@ -99,6 +98,8 @@ def get_from_dataloader(test,nevts=-1):
     #Load eval samples for metric calculation
     X,flavour = test.data_from_file(test.files[0],preprocess=True)
     particles,jets,mask = X[0], X[3], X[2]
+
+    
     
     particles = test.revert_preprocess(particles,mask)
     jets = test.revert_preprocess_jet(jets)
@@ -121,7 +122,7 @@ def plot(jet1,jet2,var_names,title,plot_folder):
             
         
         fig,gs,binning = plot_utils.HistRoutine(feed_dict,xlabel=var_names[ivar],
-                                                plot_ratio=False,
+                                                plot_ratio=True,
                                                 reference_name='eic_truth',
                                                 ylabel= 'Normalized entries')
 
@@ -133,7 +134,8 @@ def plot(jet1,jet2,var_names,title,plot_folder):
 def plot_results(jets, jets_gen, particles, particles_gen, flags):
     """ Plot the results using the utility functions. """
 
-    plot(jets, jets_gen, title='Jet', var_names=['Multiplicity'],
+    plot(jets, jets_gen, title='Jet', var_names=['electron $p_T$ [GeV]','electron $\eta$',
+                                                 'Multiplicity'],
          plot_folder=flags.plot_folder)
 
     #Mask zero-padded particles
@@ -145,8 +147,8 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     particles=particles[mask]
 
     plot(particles, particles_gen, title='Particle', var_names=['$\eta_{rel}$', '$\phi_{rel}$',
-                                                                'log($1 - p_{Trel}$)','z',
-                                                                'is electron','is pion','is kaon'],
+                                                                '$p_{Trel}$ [GeV]','is electron',
+                                                                'is pion','is kaon'],
          plot_folder=flags.plot_folder)
 
 def main():
@@ -167,7 +169,7 @@ def main():
         test = get_data_info(flags)
         jets, particles = get_from_dataloader(test)
         jets_gen, particles_gen = get_generated_data(sample_name)
-        
+        print(particles_gen.shape,particles.shape)
         # Plot results
         plot_results(jets, jets_gen, particles, particles_gen, flags)
 
