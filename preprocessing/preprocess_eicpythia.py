@@ -26,11 +26,10 @@ def process(p):
     
     #Modify the scattered electron pT for taking log later    
     #p[:,0,0] = p[:,0,0]/49.0  # max pT of electron is ~48.0 GeV
-
     print("Line 55, before feature shuffle\n", p[1,:3])
     new_p[:,:,0] = p[:,1:,1] + p[:,0,1,None]                             # eta
     new_p[:,:,1] = p[:,1:,2]                             # phi
-    new_p[:,:,2] = np.ma.log(1.0 - np.ma.divide(p[:,1:,0],p[:,0,0,None]).filled(0)).filled(0)  # pT
+    new_p[:,:,2] = np.ma.log(np.ma.divide(p[:,1:,0],p[:,0,0,None]).filled(0)).filled(0)  # pT
     #hardcoded pids
     new_p[:,:,3] = p[:,1:,PID_INDEX] == 11.
     new_p[:,:,4] = p[:,1:,PID_INDEX] == 211.

@@ -167,12 +167,12 @@ class EicPythiaDataLoader(DataLoader):
     def __init__(self, path, batch_size=512,rank=0,size=1):
         super().__init__(path, batch_size, rank, size)
 
-        self.mean_part = [-6.57722423e-01, -1.32635604e-04, -5.84171146e-02,  0.0, 0.0, 0.0]
-        self.std_part = [1.43289689, 0.95137615, 0.15511784, 1.0, 1.0, 1.0 ]
+        self.mean_part = [-6.57722423e-01, -1.32635604e-04, -1.17816401e+00,  0.0, 0.0, 0.0]
+        self.std_part = [1.43289689, 0.95137615, 1.49257704, 1.0, 1.0, 1.0 ]
         self.mean_jet = [ 6.48229788, -2.52708796,  4.83428984]
         self.std_jet  = [2.82288916, 0.4437837,  2.17167432]
         
-        self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log(1 - $p_{Trel}$)',
+        self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($p_{Trel}$)',
                            'is electron','is pion','is kaon']
         self.jet_names = ['electron $p_T$ [GeV]','electron $\eta$','Multiplicity']
 

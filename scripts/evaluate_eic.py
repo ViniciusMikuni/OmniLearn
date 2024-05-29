@@ -83,7 +83,7 @@ def get_generated_data(sample_name):
         particles_gen = h5f['data'][:]
         
     def undo_pt(x):
-        x[:,:,2] = 1.0 - np.exp(particles_gen[:,:,2])
+        x[:,:,2] = np.exp(particles_gen[:,:,2])
         return x
 
     mask_gen = particles_gen[:,:,2]!=0
@@ -103,7 +103,7 @@ def get_from_dataloader(test,nevts=-1):
     
     particles = test.revert_preprocess(particles,mask)
     jets = test.revert_preprocess_jet(jets)
-    particles[:,:,2] = 1.0 - np.exp(particles[:,:,2])
+    particles[:,:,2] = np.exp(particles[:,:,2])
     #only keep the first 3 features
     if nevts<0:
         nevts = jets.shape[0]
