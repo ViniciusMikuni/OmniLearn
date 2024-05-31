@@ -287,7 +287,8 @@ def HistRoutine(feed_dict,
                 xlabel='',
                 ylabel='Normalized entries',
                 reference_name='data',
-                logy=False,binning=None,
+                logy=False,logx=False,
+                binning=None,
                 fig = None, gs = None,
                 label_loc='best',
                 plot_ratio=False,
@@ -347,13 +348,17 @@ def HistRoutine(feed_dict,
                         ax1.fill_between(np.array([xlow,xup]),
                                          uncertainty[ibin],-uncertainty[ibin], alpha=0.3,color='k')    
     if logy:
-        ax0.set_yscale('log')
+        ax0.set_yscale('log')        
         ax0.set_ylim(1e-3,10*maxy)
+        
     else:
         ax0.set_ylim(0,1.3*maxy)
 
+    if logx:
+        ax0.set_xscale('log')
+
     ax0.legend(loc=label_loc,fontsize=16,ncol=2)
-    ax0.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+    #ax0.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
     
     if plot_ratio:
         FormatFig(xlabel = "", ylabel = ylabel,ax0=ax0) 

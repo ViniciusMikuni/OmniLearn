@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Process jet data.")
+    parser = argparse.ArgumentParser(description="Process elec data.")
     parser.add_argument("--dataset", type=str, default="eic", help="Dataset to use")
     parser.add_argument("--folder", default="/pscratch/sd/v/vmikuni/PET/", help="Folder containing input files")
     parser.add_argument("--mode", default="generator", help="Loss type to train the model: [all/classifier/generator]")
@@ -123,13 +123,24 @@ def plot(jet1,jet2,var_names,title,plot_folder):
         
         fig,gs,binning = plot_utils.HistRoutine(feed_dict,xlabel=var_names[ivar],
                                                 plot_ratio=True,
+                                                logy=ivar==0,
+                                                #logx=ivar==0,
+                                                binning = np.linspace(-4,0.,50) if ivar==0 else None,
                                                 reference_name='eic_truth',
                                                 ylabel= 'Normalized entries')
 
         ax0 = plt.subplot(gs[0])     
         fig.savefig('{}/EIC_{}_{}.pdf'.format(plot_folder,title,ivar),bbox_inches='tight')
 
+def get_z(particles,electron):
+    z = pT_to_z(particles[:,:,2]*electron[:,0,None],particles[:,:,0] - electron[:,1,None])
+    return np.concatenate([np.ma.log10(z[:,:,None]).filled(0),particles],-1)
 
+def pT_to_z(pT,eta,mass):
+    eProton = 275
+    eElectron = 10
+    sqrt_s = np.sqrt(4*eProton*eElectron)
+    return 2.*pT*np.cosh(eta)/sqrt_s
 
 def plot_results(jets, jets_gen, particles, particles_gen, flags):
     """ Plot the results using the utility functions. """
@@ -138,18 +149,25 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
                                                  'Multiplicity'],
          plot_folder=flags.plot_folder)
 
-    #Mask zero-padded particles
-    particles_gen=particles_gen.reshape((-1,particles_gen.shape[-1]))
-    mask_gen = particles_gen[:,2]!=0.
-    particles_gen=particles_gen[mask_gen]
-    particles=particles.reshape((-1,particles.shape[-1]))
-    mask = particles[:,2]!=0.
-    particles=particles[mask]
+    particles = get_z(particles,jets)
+    particles_gen = get_z(particles_gen,jets_gen)
 
-    plot(particles, particles_gen, title='Particle', var_names=['$\eta_{rel}$', '$\phi_{rel}$',
-                                                                '$p_{Trel}$ [GeV]','is electron',
-                                                                'is pion','is kaon'],
-         plot_folder=flags.plot_folder)
+    
+    #Separate plots for each type of particle
+    for pid in range(3):
+        mask_pid = particles[:,:,4+pid]==1
+        mask_pid_gen = particles_gen[:,:,4+pid]==1
+            
+        #Mask zero-padded particles
+        particles_gen_pid=(mask_pid_gen[:,:,None]*particles_gen).reshape((-1,particles_gen.shape[-1]))
+        particles_gen_pid=particles_gen_pid[particles_gen_pid[:,3]!=0.]
+        particles_pid=(mask_pid[:,:,None]*particles).reshape((-1,particles.shape[-1]))
+        particles_pid=particles_pid[particles_pid[:,3]!=0.]
+
+        
+        var_names = ['$\log_{10}$(z)','$\eta_{rel}$', '$\phi_{rel}$','$p_{Trel}$ [GeV]']
+        plot(particles_pid[:,:len(var_names)], particles_gen_pid[:,:len(var_names)],
+             title=f'Particle_{pid}', var_names=var_names,plot_folder=flags.plot_folder)
 
 def main():
     plot_utils.SetStyle()

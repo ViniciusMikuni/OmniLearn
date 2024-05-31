@@ -173,7 +173,7 @@ class EicPythiaDataLoader(DataLoader):
         self.std_jet  = [2.82288916, 0.4437837,  2.17167432]
         
         self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($p_{Trel}$)',
-                           'is electron','is pion','is kaon']
+                           'is electron','is pion','is kaon','z']
         self.jet_names = ['electron $p_T$ [GeV]','electron $\eta$','Multiplicity']
 
             
