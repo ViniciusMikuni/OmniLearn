@@ -130,13 +130,18 @@ def plot(jet1,jet2,var_names,title,plot_folder):
                                                 ylabel= 'Normalized entries')
 
         ax0 = plt.subplot(gs[0])     
+        if "Particle" in title:
+            p_dict = {"Particle_0" : "$e^-$",
+                      "Particle_1" : "$\pi^+$",
+                      "Particle_2" : "$K^+$"}
+            plt.title(p_dict[title], fontsize=35)
         fig.savefig('{}/EIC_{}_{}.pdf'.format(plot_folder,title,ivar),bbox_inches='tight')
 
 def get_z(particles,electron):
     z = pT_to_z(particles[:,:,2]*electron[:,0,None],particles[:,:,0] - electron[:,1,None])
     return np.concatenate([np.ma.log10(z[:,:,None]).filled(0),particles],-1)
 
-def pT_to_z(pT,eta,mass):
+def pT_to_z(pT,eta):
     eProton = 275
     eElectron = 10
     sqrt_s = np.sqrt(4*eProton*eElectron)
@@ -157,7 +162,7 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     for pid in range(3):
         mask_pid = particles[:,:,4+pid]==1
         mask_pid_gen = particles_gen[:,:,4+pid]==1
-            
+
         #Mask zero-padded particles
         particles_gen_pid=(mask_pid_gen[:,:,None]*particles_gen).reshape((-1,particles_gen.shape[-1]))
         particles_gen_pid=particles_gen_pid[particles_gen_pid[:,3]!=0.]
