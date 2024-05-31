@@ -128,10 +128,11 @@ def plot(jet1,jet2,var_names,title,plot_folder):
                                                 ylabel= 'Normalized entries')
 
         ax0 = plt.subplot(gs[0])     
-        if "Particle" in title:
-            p_dict = {"Particle_0" : "$e^-$",
-                      "Particle_1" : "$\pi^+$",
-                      "Particle_2" : "$K^+$"}
+
+        p_dict = {"Particle_0" : "$e^-$",
+                  "Particle_1" : "$\pi^+$",
+                  "Particle_2" : "$K^+$"}
+        if title in p_dict:
             plt.title(p_dict[title], fontsize=35)
         fig.savefig('{}/EIC_{}_{}.pdf'.format(plot_folder,title,ivar),bbox_inches='tight')
 
@@ -168,7 +169,7 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     
 
     #Inclusive plots with all particles
-    var_names = ['$\log_{10}$(z)','$\eta_{rel}$', '$\phi_{rel}$','$p_{Trel}$ [GeV]',
+    var_names = ['all $\log_{10}$(z)','all $\eta_{rel}$', 'all $\phi_{rel}$','all $p_{Trel}$ [GeV]',
                  'is electron', 'is kaon', 'is pion']
     plot(particles, particles_gen,title=f'Particle',var_names=var_names,plot_folder=flags.plot_folder)
 
