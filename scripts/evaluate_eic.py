@@ -134,11 +134,18 @@ def plot(jet1,jet2,var_names,title,plot_folder):
                   "Particle_2" : "$K^+$"}
         if title in p_dict:
             plt.title(p_dict[title], fontsize=35)
+
         fig.savefig('{}/EIC_{}_{}.pdf'.format(plot_folder,title,ivar),bbox_inches='tight')
+        plt.close()
+
+def get_abs_eta(particles, electron):
+    eta = particles[:,:,0] - electron[:,1,None]  #abs. eta
+    return np.concatenate([eta[:,:,None], particles],-1)  #put abs eta as last index
+    return particles
 
 def get_z(particles,electron):
-    z = pT_to_z(particles[:,:,2]*electron[:,0,None],particles[:,:,0] - electron[:,1,None])
-    z_ele = pT_to_z(electron[:,0,None],electron[:,1,None])
+    z = pT_to_z(particles[:,:,3]*electron[:,0,None], particles[:,:,0])  #abs pT. abs eta done above
+    z_ele = pT_to_z(electron[:,0,None], electron[:,1,None])
     sum_z = z_ele + np.sum(z,1,keepdims=True)
     return np.concatenate([np.ma.log10(z[:,:,None]).filled(0),particles],-1), np.concatenate([np.log10(z_ele),sum_z,electron],-1)
 
@@ -151,47 +158,77 @@ def pT_to_z(pT,eta):
 def plot_results(jets, jets_gen, particles, particles_gen, flags):
     """ Plot the results using the utility functions. """
 
-    particles,jets = get_z(particles,jets)
-    particles_gen,jets_gen = get_z(particles_gen,jets_gen)
+    particles = get_abs_eta(particles, jets) #rel to abs eta, concats scattered e-
+    particles_gen = get_abs_eta(particles_gen, jets_gen)
+
+    particles, jets = get_z(particles,jets)
+    particles_gen, jets_gen = get_z(particles_gen,jets_gen)
 
 
+    ele_var_names = ['scattered e$^{-}$ $\log_{10}$(z)',
+                     '$\sum_{i\in event} z_i$',
+                     'scattered e$^{-}$ $p_T$ [GeV]',
+                     'scattered e$^{-}$ $\eta$','Multiplicity']
 
-    var_names = ['scattered e$^{-}$ $\log_{10}$(z)','$\sum_{i\in event} z_i$','scattered e$^{-}$ $p_T$ [GeV]',
-                 'scattered e$^{-}$ $\eta$','Multiplicity']
-    plot(jets, jets_gen, title='Electron', var_names=var_names,plot_folder=flags.plot_folder)
+    plot(jets, jets_gen, title='Electron',
+         var_names=ele_var_names, plot_folder=flags.plot_folder)
     
     
     #Mask zero-padded particles
     particles_gen=particles_gen.reshape((-1,particles_gen.shape[-1]))
-    particles_gen=particles_gen[particles_gen[:,3]!=0.]
+    particles_gen=particles_gen[particles_gen[:,4]!=0.]
     particles=particles.reshape((-1,particles.shape[-1]))
-    particles=particles[particles[:,3]!=0.]
+    particles=particles[particles[:,4]!=0.]
     
-
     #Inclusive plots with all particles
-    var_names = ['all $\log_{10}$(z)','all $\eta_{rel}$', 'all $\phi_{rel}$','all $p_{Trel}$ [GeV]',
-                 'is electron', 'is kaon', 'is pion']
-    plot(particles, particles_gen,title=f'Particle',var_names=var_names,plot_folder=flags.plot_folder)
+    part_var_names = ['all $\log_{10}$(z)','all $\eta_{abs}$',
+                      'all $\eta_{rel}$', 'all $\phi_{rel}$',
+                      'all $p_{Trel}$ [GeV]','is electron',
+                      'is kaon', 'is pion']
 
-    
+    plot(particles, particles_gen,title=f'Particle',
+         var_names=part_var_names,plot_folder=flags.plot_folder)
     
     #Separate plots for each type of particle
-    particle_names = ['e$^{-}$','K$^{+}$','$\pi^{+}$']
+    particle_names = ['e$^{-}$','$\pi^{+}$','K$^{+}$']  #see L34 preprocess_eicpythia.py
+
+
     for pid in range(3):
-        mask_pid = particles[:,4+pid]==1
-        mask_pid_gen = particles_gen[:,4+pid]==1
+        mask_pid = particles[:,5+pid]==1
+        mask_pid_gen = particles_gen[:,5+pid]==1
         #Mask zero-padded particles
         particles_gen_pid=mask_pid_gen[:,None]*particles_gen
-        particles_gen_pid=particles_gen_pid[particles_gen_pid[:,3]!=0.]
+        particles_gen_pid=particles_gen_pid[particles_gen_pid[:,4]!=0.]
         particles_pid=mask_pid[:,None]*particles
-        particles_pid=particles_pid[particles_pid[:,3]!=0.]
-        
+        particles_pid=particles_pid[particles_pid[:,4]!=0.]
+
         var_names = [f'{particle_names[pid]}' + ' $\log_{10}$(z)',
+                     f'{particle_names[pid]}' + ' $\eta_{abs}$',
                      f'{particle_names[pid]}' + ' $\eta_{rel}$',
                      f'{particle_names[pid]}' + ' $\phi_{rel}$',
                      f'{particle_names[pid]}' + ' $p_{Trel}$ [GeV]']
-        plot(particles_pid[:,:len(var_names)], particles_gen_pid[:,:len(var_names)],
-             title=f'Particle_{pid}', var_names=var_names,plot_folder=flags.plot_folder)
+
+
+        plot(particles_pid[:,:len(var_names)],
+             particles_gen_pid[:,:len(var_names)],
+             title=f'Particle_{pid}', var_names=var_names,
+             plot_folder=flags.plot_folder)
+
+    # Electron PLots, scattered + produced
+    all_ele = np.zeros((len(particles)+len(jets),2))
+    all_ele[:,0] = np.concatenate((np.ravel(particles[:,0]), np.ravel(jets[:,0])))
+    all_ele[:,1] = np.concatenate((np.ravel(particles[:,1]), np.ravel(jets[:,-2])))
+
+    all_ele_gen = np.zeros((len(particles_gen)+len(jets_gen),2))
+    all_ele_gen[:,0] = np.concatenate((np.ravel(particles_gen[:,0]), 
+                                     np.ravel(jets_gen[:,0])))
+    all_ele_gen[:,1] = np.concatenate((np.ravel(particles_gen[:,1]),
+                                       np.ravel(jets_gen[:,-2])))
+
+    ele_vars = ["$\log_{10}$(z)",'$\eta_{abs}$']
+
+    plot(all_ele, all_ele_gen,title=f'All_Electrons',
+         var_names=ele_vars, plot_folder=flags.plot_folder)
 
 def main():
     plot_utils.SetStyle()
