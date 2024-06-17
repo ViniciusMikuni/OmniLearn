@@ -62,7 +62,7 @@ def sample_data(test, model, flags, sample_name):
     """ Sample data using the model and save to file. """
     y, j = test.y[:], None
     
-    nsplit = 10
+    nsplit = 20
     p, j = model.generate(y, jets=j, nsplit=nsplit,use_tqdm=hvd.rank()==0)
     p = test.revert_preprocess(p, p[:, :, 2] != 0)
     j = test.revert_preprocess_jet(j)
@@ -129,9 +129,18 @@ def plot(jet1,jet2,var_names,title,plot_folder):
 
         ax0 = plt.subplot(gs[0])     
 
-        p_dict = {"Particle_0" : "$e^-$",
-                  "Particle_1" : "$\pi^+$",
-                  "Particle_2" : "$K^+$"}
+        p_dict = {"Particle_0" : "p",
+                  "Particle_1" : "n",
+                  "Particle_2" : "$K^+$",
+                  "Particle_3" : '$\pi^{+}$',
+                  "Particle_4" : 'tau neutrino',
+                  "Particle_5" : '$\mu$ neutrino',
+                  "Particle_6" : '$\mu$',
+                  "Particle_7" : '$e$ neutrino',
+                  "Particle_8" : 'e$^{-}$',
+                  "Particle_9" : '$\gamma$',
+                  "Particle_10" : '$\pi^{0}$',
+                  }
         if title in p_dict:
             plt.title(p_dict[title], fontsize=35)
 
@@ -173,7 +182,8 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     plot(jets, jets_gen, title='Electron',
          var_names=ele_var_names, plot_folder=flags.plot_folder)
     
-    
+    # print(np.sum(particles[:, :, 6:],(1,2)) - np.sum(particles[:, :, 4]!=0,1))
+    # input()
     #Mask zero-padded particles
     particles_gen=particles_gen.reshape((-1,particles_gen.shape[-1]))
     particles_gen=particles_gen[particles_gen[:,4]!=0.]
@@ -183,19 +193,26 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     #Inclusive plots with all particles
     part_var_names = ['all $\log_{10}$(z)','all $\eta_{abs}$',
                       'all $\eta_{rel}$', 'all $\phi_{rel}$',
-                      'all $p_{Trel}$ [GeV]','is electron',
-                      'is kaon', 'is pion']
+                      'all $p_{Trel}$ [GeV]',
+                      'charge','is proton','is neutron','is kaon',
+                      'is pion', 'is tau neutrino','is muon neutrino',
+                      'is muon','is electron neutrino', 'is electron',
+                      'is photon', 'is pi0']
 
     plot(particles, particles_gen,title=f'Particle',
          var_names=part_var_names,plot_folder=flags.plot_folder)
     
     #Separate plots for each type of particle
-    particle_names = ['e$^{-}$','$\pi^{+}$','K$^{+}$']  #see L34 preprocess_eicpythia.py
+    particle_names = ['p','n','K$^{+}$',
+                      '$\pi^{+}$', 'tau neutrino','$\mu$ neutrino',
+                      '$\mu$','$e$ neutrino', 'e$^{-}$',
+                      '$\gamma$', '$\pi^{0}$']
 
 
-    for pid in range(3):
-        mask_pid = particles[:,5+pid]==1
-        mask_pid_gen = particles_gen[:,5+pid]==1
+
+    for pid in range(11):
+        mask_pid = particles[:,6+pid]==1
+        mask_pid_gen = particles_gen[:,6+pid]==1
         #Mask zero-padded particles
         particles_gen_pid=mask_pid_gen[:,None]*particles_gen
         particles_gen_pid=particles_gen_pid[particles_gen_pid[:,4]!=0.]

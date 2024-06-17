@@ -42,7 +42,7 @@ def load_pickle(folder,f):
 def revert_npart(npart, name='30'):
     # Reverse the preprocessing to recover the particle multiplicity
     stats = {'30': (29.03636, 2.7629626),
-             '11': (5.05597317, 2.25117321),
+             '49': (21.66242333, 8.86935969),
              '150': (49.398304, 20.772636),
              '279': (57.28675, 29.41252836)}
     mean, std = stats[name]
@@ -167,13 +167,19 @@ class EicPythiaDataLoader(DataLoader):
     def __init__(self, path, batch_size=512,rank=0,size=1):
         super().__init__(path, batch_size, rank, size)
 
-        self.mean_part = [-6.57722423e-01, -1.32635604e-04, -1.17816401e+00,  0.0, 0.0, 0.0]
-        self.std_part = [1.43289689, 0.95137615, 1.49257704, 1.0, 1.0, 1.0 ]
-        self.mean_jet = [ 6.48229788, -2.52708796,  4.83428984]
-        self.std_jet  = [2.82288916, 0.4437837,  2.17167432]
+        self.mean_part = [-6.57722423e-01, -1.32635604e-04, -1.35429178,
+                          0.0, 0.0, 0.0,0.0, 0.0, 0.0,0.0, 0.0, 0.0,0.0, 0.0, 0.0 ]
+        self.std_part = [1.43289689, 0.95137615, 1.49257704,
+                         1.0, 1.0, 1.0,1.0, 1.0, 1.0,1.0, 1.0, 1.0,1.0, 1.0, 1.0 ]
+        self.mean_jet = [ 6.48229788, -2.52708796,  21.66242333]
+        self.std_jet  = [2.82288916, 0.4437837,  8.86935969]
         
         self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($p_{Trel}$)',
-                           'is electron','is pion','is kaon','z']
+                           'charge','is proton','is neutron','is kaon',
+                           'is pion', 'is tau neutrino','is muon neutrino',
+                           'is muon','is electron neutrino', 'is electron',
+                           'is photon', 'is pi0'
+                           ]
         self.jet_names = ['electron $p_T$ [GeV]','electron $\eta$','Multiplicity']
 
             
@@ -203,10 +209,10 @@ class EicPythiaDataLoader(DataLoader):
         num_feat = x.shape[-1]        
         new_part = mask[:,:, None]*(x[:,:,:num_feat]*self.std_part[:num_feat] + self.mean_part[:num_feat])
         #one hot encode the pids again
-        max_indices = np.argmax(new_part[:,:,-3:], axis=-1)
-        pids = np.zeros_like(new_part[:,:,-3:])
+        max_indices = np.argmax(new_part[:,:,4:], axis=-1)
+        pids = np.zeros_like(new_part[:,:,4:])
         pids[np.arange(new_part.shape[0])[:, None], np.arange(new_part.shape[1]), max_indices] = 1
-        new_part[:,:,-3:] = pids
+        new_part[:,:,4:] = pids
         
         return  new_part
 

@@ -34,7 +34,7 @@ def load_data(flags):
         test = utils.JetNetDataLoader(os.path.join(flags.folder,'JetNet','test_150.h5'),big=True)
         
     elif flags.dataset == 'eic':
-        test = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','train_eic.h5'))
+        test = utils.EicPythiaDataLoader(os.path.join(flags.folder,'EIC_Pythia','val_eic.h5'))
     elif flags.dataset == 'jetnet30':
         test = utils.JetNetDataLoader(os.path.join(flags.folder,'JetNet','test_30.h5'))
         
@@ -82,13 +82,14 @@ def main():
     
     print('jets mean',np.mean(jets,0))
     print('jets std',np.std(jets,0))
-        
     for feat in range(len(test.jet_names)):
         flat = jets[:, feat]
         fig, gs, _ = plot_utils.HistRoutine({'{}'.format(flags.dataset): flat}, test.jet_names[feat], 'Normalized Events', plot_ratio=False, reference_name='{}'.format(flags.dataset))
         fig.savefig(f"{flags.plot_folder}/jets_{flags.dataset}_{feat}.pdf", bbox_inches='tight')
 
+    print("Maximum number of particles",np.max(np.sum(parts[:, :, 0]!=0,1)))
     mask = parts[:, :, 0].reshape(-1) != 0
+
     for feat in range(len(test.part_names)):
         flat = parts[:, :, feat].reshape(-1)
         flat = flat[mask]
