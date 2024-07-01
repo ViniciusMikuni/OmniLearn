@@ -22,7 +22,7 @@ def process(p):
     '''particles features: [pT, eta, phi, PID, z]'''
 
     mask = p[:,1:,0]!=0.0  # mask is from pT==0
-    new_p = np.zeros(shape=(p.shape[0],p.shape[1]-1,15)) 
+    new_p = np.zeros(shape=(p.shape[0],p.shape[1]-1,13)) 
     
     #Modify the scattered electron pT for taking log later    
     print("Line 55, before feature shuffle\n", p[1,:3])
@@ -31,17 +31,15 @@ def process(p):
     new_p[:,:,2] = np.ma.log(np.ma.divide(p[:,1:,0],p[:,0,0,None]).filled(0)).filled(0)  # pT
     new_p[:,:,3] = np.sign(p[:,1:,PID_INDEX])
     #hardcoded pids    
-    new_p[:,:,4] = np.abs(p[:,1:,PID_INDEX]) == 2212.
-    new_p[:,:,5] = np.abs(p[:,1:,PID_INDEX]) == 2112.
-    new_p[:,:,6] = np.abs(p[:,1:,PID_INDEX]) == 321.
-    new_p[:,:,7] = np.abs(p[:,1:,PID_INDEX]) == 211.
-    new_p[:,:,8] = np.abs(p[:,1:,PID_INDEX]) == 16.
-    new_p[:,:,9] = np.abs(p[:,1:,PID_INDEX]) == 14.
-    new_p[:,:,10] = np.abs(p[:,1:,PID_INDEX]) == 13.
-    new_p[:,:,11] = np.abs(p[:,1:,PID_INDEX]) == 12.
-    new_p[:,:,12] = np.abs(p[:,1:,PID_INDEX]) == 11.
-    new_p[:,:,13] = np.abs(p[:,1:,PID_INDEX]) == 22.
-    new_p[:,:,14] = np.abs(p[:,1:,PID_INDEX]) == 130.
+    new_p[:,:,4] = np.abs(p[:,1:,PID_INDEX]) == 2212. #proton
+    new_p[:,:,5] = np.abs(p[:,1:,PID_INDEX]) == 2112. #neutron
+    new_p[:,:,6] = np.abs(p[:,1:,PID_INDEX]) == 321. #kaon+
+    new_p[:,:,7] = np.abs(p[:,1:,PID_INDEX]) == 211. #pi +
+    new_p[:,:,8] = ((np.abs(p[:,1:,PID_INDEX]) == 16.) | (np.abs(p[:,1:,PID_INDEX]) == 14.) | (np.abs(p[:,1:,PID_INDEX]) == 12.)) # neutrinos
+    new_p[:,:,9] = np.abs(p[:,1:,PID_INDEX]) == 13. #muon
+    new_p[:,:,10] = np.abs(p[:,1:,PID_INDEX]) == 11. #electron
+    new_p[:,:,11] = np.abs(p[:,1:,PID_INDEX]) == 22. #photon
+    new_p[:,:,12] = np.abs(p[:,1:,PID_INDEX]) == 130. # k0l
     
     
     print("\n\nLine 60, AFTER feature shuffle\n", new_p[1,:3])

@@ -27,7 +27,7 @@ def parse_arguments():
     parser.add_argument("--folder", type=str, default="/pscratch/sd/v/vmikuni/PET/", help="Folder containing input files")
     parser.add_argument("--mode", type=str, default="generator", help="Loss type to train the model")
     parser.add_argument("--batch", type=int, default=512, help="Batch size")
-    parser.add_argument("--epoch", type=int, default=200, help="Max epoch")
+    parser.add_argument("--epoch", type=int, default=520, help="Max epoch")
     parser.add_argument("--lr", type=float, default=3e-5, help="Learning rate")
     parser.add_argument("--lr_factor", type=float, default=1.0, help="Factor to adjust learning rate")
     parser.add_argument("--fine_tune", action='store_true', default=False, help='Fine tune a model')

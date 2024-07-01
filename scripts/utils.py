@@ -168,30 +168,38 @@ class EicPythiaDataLoader(DataLoader):
         super().__init__(path, batch_size, rank, size)
 
         self.mean_part = [-6.57722423e-01, -1.32635604e-04, -1.35429178,
-                          0.0, 0.0, 0.0,0.0, 0.0, 0.0,0.0, 0.0, 0.0,0.0, 0.0, 0.0 ]
+                          0.0, 0.0, 0.0,0.0, 0.0, 0.0,0.0, 0.0, 0.0,0.0]
         self.std_part = [1.43289689, 0.95137615, 1.49257704,
-                         1.0, 1.0, 1.0,1.0, 1.0, 1.0,1.0, 1.0, 1.0,1.0, 1.0, 1.0 ]
+                         1.0, 1.0, 1.0,1.0, 1.0, 1.0,1.0, 1.0, 1.0,1.0]
         self.mean_jet = [ 6.48229788, -2.52708796,  21.66242333]
         self.std_jet  = [2.82288916, 0.4437837,  8.86935969]
         
         self.part_names = ['$\eta_{rel}$', '$\phi_{rel}$', 'log($p_{Trel}$)',
                            'charge','is proton','is neutron','is kaon',
-                           'is pion', 'is tau neutrino','is muon neutrino',
-                           'is muon','is electron neutrino', 'is electron',
-                           'is photon', 'is pi0'
-                           ]
+                           'is pion', 'is neutrino',
+                           'is muon', 'is electron',
+                           'is photon', 'is pi0']
         self.jet_names = ['electron $p_T$ [GeV]','electron $\eta$','Multiplicity']
 
             
-        def add_noise(self,x):
+        def add_noise(self,x,shape=None):
             #Add noise to the event multiplicity
-            noise = np.random.uniform(-0.5,0.5,x.shape[0])
-            x[:,-1]+=noise[:,None]
+            if shape is None:
+                noise = np.random.uniform(-0.3,0.3,x.shape[0])
+                x[:,-1]+=noise[:,None]
+            else:
+                noise = np.random.uniform(-0.3,0.3,shape)
+                x[:,:,4:]+=noise[:,None]
             return x
             
         def preprocess_jet(self,x):
-            new_x = self.add_noise(copy.deepcopy(x))
+            #new_x = self.add_noise(copy.deepcopy(x))
             return (new_x-self.mean_jet)/self.std_jet
+
+        def preprocess(self,x,mask):                
+            num_feat = x.shape[-1]
+            #new_x = self.add_noise(copy.deepcopy(x),x[:,:,4:].shape)
+            return mask[:,:, None]*(new_x[:,:,:num_feat]-self.mean_part[:num_feat])/self.std_part[:num_feat]
 
 
         self.load_data(path, batch_size,rank,size)

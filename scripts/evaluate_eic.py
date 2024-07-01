@@ -16,7 +16,9 @@ import logging
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
+#keeping track of the number of variables plotted
+base_vars = 4
+add_vars = 2
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Process elec data.")
@@ -26,6 +28,7 @@ def parse_arguments():
     parser.add_argument("--fine_tune", action='store_true', help="Fine tune a model")
     parser.add_argument("--local", action='store_true', help="Use local embedding")
     parser.add_argument("--num_layers", type=int, default=8, help="Number of transformer layers")
+    parser.add_argument("--nevts", type=int, default=-1, help="Number of events to load")
     parser.add_argument("--drop_probability", type=float, default=0.0, help="Stochastic Depth drop probability")
     parser.add_argument("--simple", action='store_true', help="Use simplified head model")
     parser.add_argument("--talking_head", action='store_true', help="Use talking head attention")
@@ -77,10 +80,14 @@ def sample_data(test, model, flags, sample_name):
             h5f.create_dataset("jet", data=jets_gen)
             h5f.create_dataset("pid", data=y)
             
-def get_generated_data(sample_name):
+def get_generated_data(sample_name,nevts=-1):
+
     with h5.File(sample_name,"r") as h5f:
         jets_gen = h5f['jet'][:]
         particles_gen = h5f['data'][:]
+    if nevts>0:
+        jets_gen = jets_gen[:nevts]
+        particles_gen = particles_gen[:nevts]
         
     def undo_pt(x):
         x[:,:,2] = np.exp(particles_gen[:,:,2])
@@ -99,7 +106,6 @@ def get_from_dataloader(test,nevts=-1):
     X,flavour = test.data_from_file(test.files[0],preprocess=True)
     particles,jets,mask = X[0], X[3], X[2]
 
-    
     
     particles = test.revert_preprocess(particles,mask)
     jets = test.revert_preprocess_jet(jets)
@@ -133,13 +139,11 @@ def plot(jet1,jet2,var_names,title,plot_folder):
                   "Particle_1" : "n",
                   "Particle_2" : "$K^+$",
                   "Particle_3" : '$\pi^{+}$',
-                  "Particle_4" : 'tau neutrino',
-                  "Particle_5" : '$\mu$ neutrino',
-                  "Particle_6" : '$\mu$',
-                  "Particle_7" : '$e$ neutrino',
-                  "Particle_8" : 'e$^{-}$',
-                  "Particle_9" : '$\gamma$',
-                  "Particle_10" : '$\pi^{0}$',
+                  "Particle_4" : 'neutrino',
+                  "Particle_5" : '$\mu$',
+                  "Particle_6" : 'e$^{-}$',
+                  "Particle_7" : '$\gamma$',
+                  "Particle_8" : '$\pi^{0}$',
                   }
         if title in p_dict:
             plt.title(p_dict[title], fontsize=35)
@@ -158,11 +162,41 @@ def get_z(particles,electron):
     sum_z = z_ele + np.sum(z,1,keepdims=True)
     return np.concatenate([np.ma.log10(z[:,:,None]).filled(0),particles],-1), np.concatenate([np.log10(z_ele),sum_z,electron],-1)
 
-def pT_to_z(pT,eta):
+def get_mass(particles):
+    mask = particles[:,:,2]!=0
+    mass_vals = np.array([
+         0.938,
+         0.939,
+         0.493,
+         0.139,
+         0.0,
+         0.105,
+         0.511e-5,
+         0.0,
+         0.497,
+    ])
+    mass = mass_vals[np.argmax(particles[:,:,5:],-1)]
+    return mass*mask
+
+def get_z_mass(particles,electron):
+    mass = get_mass(particles)
+    z = pT_to_z(particles[:,:,3]*electron[:,0,None], particles[:,:,0],mass)  #abs pT. abs eta done above
+    z_ele = pT_to_z(electron[:,0,None], electron[:,1,None],mass = 0.511e-3*np.ones((electron.shape[0],1)))
+    sum_z = z_ele + np.sum(z,1,keepdims=True)
+    print(sum_z)
+    return np.concatenate([np.ma.log10(z[:,:,None]).filled(0),particles],-1), np.concatenate([np.log10(z_ele),sum_z,electron],-1)
+
+
+def pT_to_z(pT,eta,mass=None):
     eProton = 275
     eElectron = 10
     sqrt_s = np.sqrt(4*eProton*eElectron)
-    return 2.*pT*np.cosh(eta)/sqrt_s
+    if mass is None:
+        return 2.*pT*np.cosh(eta)/sqrt_s
+    else:
+        m_T = np.sqrt(pT**2 + mass**2)
+        y = 0.5 * np.ma.log((np.cosh(eta) + (pT/m_T) * np.sinh(eta)) / (np.cosh(eta) - (pT/m_T) * np.sinh(eta))).filled(0)
+        return 2.*m_T*np.cosh(y)/sqrt_s
 
 def plot_results(jets, jets_gen, particles, particles_gen, flags):
     """ Plot the results using the utility functions. """
@@ -171,6 +205,7 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     particles_gen = get_abs_eta(particles_gen, jets_gen)
 
     particles, jets = get_z(particles,jets)
+    #particles, jets = get_z_mass(particles,jets)
     particles_gen, jets_gen = get_z(particles_gen,jets_gen)
 
 
@@ -182,8 +217,6 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     plot(jets, jets_gen, title='Electron',
          var_names=ele_var_names, plot_folder=flags.plot_folder)
     
-    # print(np.sum(particles[:, :, 6:],(1,2)) - np.sum(particles[:, :, 4]!=0,1))
-    # input()
     #Mask zero-padded particles
     particles_gen=particles_gen.reshape((-1,particles_gen.shape[-1]))
     particles_gen=particles_gen[particles_gen[:,4]!=0.]
@@ -195,24 +228,25 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
                       'all $\eta_{rel}$', 'all $\phi_{rel}$',
                       'all $p_{Trel}$ [GeV]',
                       'charge','is proton','is neutron','is kaon',
-                      'is pion', 'is tau neutrino','is muon neutrino',
-                      'is muon','is electron neutrino', 'is electron',
+                      'is pion', 'is neutrino',
+                      'is muon','is electron',
                       'is photon', 'is pi0']
-
+    
     plot(particles, particles_gen,title=f'Particle',
          var_names=part_var_names,plot_folder=flags.plot_folder)
     
     #Separate plots for each type of particle
     particle_names = ['p','n','K$^{+}$',
-                      '$\pi^{+}$', 'tau neutrino','$\mu$ neutrino',
-                      '$\mu$','$e$ neutrino', 'e$^{-}$',
+                      '$\pi^{+}$', 'neutrino',
+                      '$\mu$', 'e$^{-}$',
                       '$\gamma$', '$\pi^{0}$']
 
 
 
-    for pid in range(11):
-        mask_pid = particles[:,6+pid]==1
-        mask_pid_gen = particles_gen[:,6+pid]==1
+    for pid in range(len(particle_names)):
+        mask_pid = particles[:,base_vars+add_vars+pid]==1
+        print(f"Fraction of {particle_names[pid]} in dataset: {1.0*np.sum(mask_pid)/mask_pid.shape[0]}")
+        mask_pid_gen = particles_gen[:,base_vars+add_vars+pid]==1
         #Mask zero-padded particles
         particles_gen_pid=mask_pid_gen[:,None]*particles_gen
         particles_gen_pid=particles_gen_pid[particles_gen_pid[:,4]!=0.]
@@ -232,15 +266,15 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
              plot_folder=flags.plot_folder)
 
     # Electron PLots, scattered + produced
-    all_ele = np.zeros((len(particles)+len(jets),2))
-    all_ele[:,0] = np.concatenate((np.ravel(particles[:,0]), np.ravel(jets[:,0])))
-    all_ele[:,1] = np.concatenate((np.ravel(particles[:,1]), np.ravel(jets[:,-2])))
+    mask_electron = particles[:,base_vars+add_vars+6]==1
+    all_ele = np.zeros((particles[:,0][mask_electron].shape[0]+len(jets),2))
+    all_ele[:,0] = np.concatenate((particles[:,0][mask_electron], jets[:,0]))
+    all_ele[:,1] = np.concatenate((particles[:,1][mask_electron], jets[:,-2]))
 
-    all_ele_gen = np.zeros((len(particles_gen)+len(jets_gen),2))
-    all_ele_gen[:,0] = np.concatenate((np.ravel(particles_gen[:,0]), 
-                                     np.ravel(jets_gen[:,0])))
-    all_ele_gen[:,1] = np.concatenate((np.ravel(particles_gen[:,1]),
-                                       np.ravel(jets_gen[:,-2])))
+    mask_electron_gen = particles_gen[:,base_vars+add_vars+6]==1
+    all_ele_gen = np.zeros((particles_gen[:,0][mask_electron_gen].shape[0]+len(jets_gen),2))
+    all_ele_gen[:,0] = np.concatenate((particles_gen[:,0][mask_electron_gen], jets_gen[:,0]))
+    all_ele_gen[:,1] = np.concatenate((particles_gen[:,1][mask_electron_gen], jets_gen[:,-2]))
 
     ele_vars = ["$\log_{10}$(z)",'$\eta_{abs}$']
 
@@ -263,8 +297,8 @@ def main():
         if hvd.rank()==0:logging.info("Loading saved samples.")
         # Load and process data, generate plots, etc.        
         test = get_data_info(flags)
-        jets, particles = get_from_dataloader(test)
-        jets_gen, particles_gen = get_generated_data(sample_name)
+        jets, particles = get_from_dataloader(test,flags.nevts)
+        jets_gen, particles_gen = get_generated_data(sample_name,flags.nevts)
         print(particles_gen.shape,particles.shape)
         # Plot results
         plot_results(jets, jets_gen, particles, particles_gen, flags)

@@ -310,8 +310,8 @@ def HistRoutine(feed_dict,
 
         
     if binning is None:
-        min_x = np.quantile(feed_dict[reference_name],0.01)
-        max_x = np.quantile(feed_dict[reference_name],0.99)
+        min_x = np.quantile(feed_dict[reference_name],0.001)
+        max_x = np.quantile(feed_dict[reference_name],0.999)
         if min_x==max_x:
             max_x = np.quantile(feed_dict[reference_name],1.0)
         binning = np.linspace(min_x,max_x,50)
