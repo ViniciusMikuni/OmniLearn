@@ -486,6 +486,35 @@ class TopDataLoader(DataLoader):
         self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
         self.files = [path]
 
+
+class ToyDataLoader(DataLoader):    
+    def __init__(self, nevts,batch_size=512,rank=0,size=1):
+        super().__init__(nevts,batch_size, rank, size)
+
+        self.nevts = nevts
+        self.X = np.concatenate([
+            np.random.normal(loc = 0.0,scale=1.0,size=(self.nevts,15,13)),
+            np.random.normal(loc = 1.0,scale=1.0,size=(self.nevts,15,13))])
+        self.jet = np.concatenate([
+            np.random.normal(loc = 0.0,scale=1.0,size=(self.nevts,4)),
+            np.random.normal(loc = 1.0,scale=1.0,size=(self.nevts,4))])
+        self.mask = self.X[:,:,2]!=0
+        self.y = np.concatenate([np.ones((self.nevts)),np.zeros((self.nevts))])        
+        self.num_part = self.X.shape[1]
+        self.num_jet = self.jet.shape[1]
+
+        
+        self.num_pad = 0
+        self.num_feat = self.X.shape[2] + self.num_pad #missing inputs
+        
+        #one hot label
+        self.y = np.identity(2)[self.y.astype(np.int32)]
+        self.num_classes = self.y.shape[1]
+        self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
+        self.files = None
+
+        
+
 class TauDataLoader(DataLoader):    
     def __init__(self, path, batch_size=512,rank=0,size=1,nevts=None):
         super().__init__(path, batch_size, rank, size)
