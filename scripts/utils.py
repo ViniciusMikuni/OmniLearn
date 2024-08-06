@@ -486,6 +486,7 @@ class TopDataLoader(DataLoader):
         self.steps_per_epoch = None #will pass none, otherwise needs to add repeat to tf data
         self.files = [path]
 
+        
 
 class ToyDataLoader(DataLoader):    
     def __init__(self, nevts,batch_size=512,rank=0,size=1):

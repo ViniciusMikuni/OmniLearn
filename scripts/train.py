@@ -45,6 +45,9 @@ def get_data_loader(flags):
     if flags.dataset == 'top':
         train = utils.TopDataLoader(os.path.join(flags.folder,'TOP', 'train_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
         val = utils.TopDataLoader(os.path.join(flags.folder,'TOP', 'val_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
+    if flags.dataset == 'opt':
+        train = utils.TopDataLoader(os.path.join(flags.folder,'Opt', 'train_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
+        val = utils.TopDataLoader(os.path.join(flags.folder,'Opt', 'val_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
     if flags.dataset == 'toy':
         train = utils.ToyDataLoader(100000//hvd.size(),flags.batch,hvd.rank(),hvd.size())
         val = utils.ToyDataLoader(100000//hvd.size(),flags.batch,hvd.rank(),hvd.size())

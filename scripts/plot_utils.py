@@ -7,6 +7,8 @@ from matplotlib import gridspec
 line_style = {
     'top_fine_tune':'dotted',
     'top':'-',
+    'opt':'-',
+    'opt_fine_tune':'dotted',
     'tau_fine_tune':'dotted',
     'tau':'-',
     'eic_fine_tune':'dotted',
@@ -65,6 +67,8 @@ line_style = {
 colors = {
     'top_fine_tune':'#7570b3',
     'top':'#7570b3',
+    'opt':'#7570b3',
+    'opt_fine_tune':'#7570b3',
     'tau_fine_tune':'#7570b3',
     'tau':'#7570b3',
     'eic_fine_tune':'#7570b3',
@@ -118,6 +122,8 @@ colors = {
 name_translate = {
     'top_fine_tune':'Top tagging OmniLearn',
     'top':'Top tagging',
+    'opt':'Top tagging Discrete',
+    'opt_fine_tune':'Top tagging Discrete OmniLearn',
     'tau_fine_tune':'Tau tagging OmniLearn',
     'tau':'Tau tagging',
 

@@ -8,6 +8,7 @@ import argparse
 import sys
 import gc
 
+import h5py
 from PET import PET
 import utils
 from omnifold import Classifier
@@ -18,6 +19,7 @@ def parse_arguments():
     parser.add_argument("--folder", type=str, default="/pscratch/sd/v/vmikuni/PET/", help="Folder containing input files")
     parser.add_argument("--batch", type=int, default=5000, help="Batch size")
     parser.add_argument("--load", action='store_true', help="Load pre-evaluated npy files")
+    parser.add_argument("--save-pred", action='store_true', help="Save the prediction values to a separate file")
     parser.add_argument("--mode", type=str, default="classifier", help="Loss type to train the model")
     parser.add_argument("--fine_tune", action='store_true', help="Fine tune a model")
     parser.add_argument("--nid", type=int, default=0, help="Training ID for multiple trainings")
@@ -54,6 +56,7 @@ def print_metrics(y_pred, y, thresholds, multi_label=False):
     else:
         print("AUC: {}".format(metrics.roc_auc_score(y, y_pred)))
         print('Acc: {}'.format(metrics.accuracy_score(y,y_pred>0.5)))
+        
         fpr, tpr, _ = metrics.roc_curve(y, y_pred)
 
         for threshold in thresholds:
@@ -74,6 +77,12 @@ def get_data_info(flags):
                                    flags.batch,rank = hvd.rank(),size = hvd.size())
         threshold = [0.3, 0.5]
         folder_name = 'TOP'
+        
+    if flags.dataset == 'opt':
+        test = utils.TopDataLoader(os.path.join(flags.folder,'Opt', 'test_ttbar.h5'),
+                                   flags.batch,rank = hvd.rank(),size = hvd.size())
+        threshold = [0.3, 0.5]
+        folder_name = 'Opt'
 
     elif flags.dataset == 'qg':
         test = utils.QGDataLoader(os.path.join(flags.folder,'QG', 'test_qg.h5'),
@@ -171,6 +180,12 @@ def main():
 
     y, pred = load_or_evaluate_model(flags, test,folder_name)
 
+    if flags.save_pred:
+        add_text = 'fine_tune' if flags.fine_tune else 'baseline'
+        with h5py.File('{}_{}.h5'.format(flags.dataset,add_text), "w") as fh5:
+           dset = fh5.create_dataset('y', data=y)
+           dset = fh5.create_dataset('pred', data=pred)
+            
     # Evaluate results
     print_metrics(pred, y, thresholds, multi_label=multi_label)
 
