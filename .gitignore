@@ -1,1 +1,4 @@
-images/
+images
+preprocessing/rough_prep_jetclass.ipynb
+preprocessing/jetclass.sh
+scripts/layers_pytorch.py
