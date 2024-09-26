@@ -143,7 +143,7 @@ def plot(jet1,jet2,var_names,title,plot_folder):
                   "Particle_5" : '$\mu$',
                   "Particle_6" : 'e$^{-}$',
                   "Particle_7" : '$\gamma$',
-                  "Particle_8" : '$\pi^{0}$',
+                  "Particle_8" : '$K^{0}_{L}$',
                   }
         if title in p_dict:
             plt.title(p_dict[title], fontsize=35)
@@ -151,68 +151,87 @@ def plot(jet1,jet2,var_names,title,plot_folder):
         fig.savefig('{}/EIC_{}_{}.pdf'.format(plot_folder,title,ivar),bbox_inches='tight')
         plt.close()
 
-def get_abs_eta(particles, electron):
-    eta = particles[:,:,0] - electron[:,1,None]  #abs. eta
-    return np.concatenate([eta[:,:,None], particles],-1)  #put abs eta as last index
-    return particles
-
-def get_z(particles,electron):
-    z = pT_to_z(particles[:,:,3]*electron[:,0,None], particles[:,:,0])  #abs pT. abs eta done above
-    z_ele = pT_to_z(electron[:,0,None], electron[:,1,None])
-    sum_z = z_ele + np.sum(z,1,keepdims=True)
-    return np.concatenate([np.ma.log10(z[:,:,None]).filled(0),particles],-1), np.concatenate([np.log10(z_ele),sum_z,electron],-1)
+def get_abs_rap(particles, electron):
+    rap_rel = np.where(particles[:,:,0]!=0.0, particles[:,:,0], np.nan)
+    rap_abs = rap_rel - electron[:, 1, np.newaxis]
+    return rap_abs
+    #put abs. rap as last index
 
 def get_mass(particles):
     mask = particles[:,:,2]!=0
     mass_vals = np.array([
-         0.938,
-         0.939,
-         0.493,
-         0.139,
-         0.0,
-         0.105,
-         0.511e-5,
-         0.0,
-         0.497,
+         0.938,    # protons
+         0.939,    # neutrons
+         0.493,    # kaons
+         0.139,    # pions
+         0.0,      # neutrinos
+         0.105,    # muons
+         0.511e-5, # electrons
+         0.0,      # photons
+         0.497,    # k0l
     ])
-    mass = mass_vals[np.argmax(particles[:,:,5:],-1)]
+    mass = mass_vals[np.argmax(particles[:,:,4:],-1)]
+    # Call before pre-pending abs. eta and log10(z)!!!
     return mass*mask
 
-def get_z_mass(particles,electron):
-    mass = get_mass(particles)
-    z = pT_to_z(particles[:,:,3]*electron[:,0,None], particles[:,:,0],mass)  #abs pT. abs eta done above
-    z_ele = pT_to_z(electron[:,0,None], electron[:,1,None],mass = 0.511e-3*np.ones((electron.shape[0],1)))
-    sum_z = z_ele + np.sum(z,1,keepdims=True)
-    print(sum_z)
-    return np.concatenate([np.ma.log10(z[:,:,None]).filled(0),particles],-1), np.concatenate([np.log10(z_ele),sum_z,electron],-1)
-
-
-def pT_to_z(pT,eta,mass=None):
-    eProton = 275
-    eElectron = 10
+def pT_to_zTilde(pT, y, mass, eProton=275, eElectron=10):
     sqrt_s = np.sqrt(4*eProton*eElectron)
-    if mass is None:
-        return 2.*pT*np.cosh(eta)/sqrt_s
-    else:
-        m_T = np.sqrt(pT**2 + mass**2)
-        y = 0.5 * np.ma.log((np.cosh(eta) + (pT/m_T) * np.sinh(eta)) / (np.cosh(eta) - (pT/m_T) * np.sinh(eta))).filled(0)
-        return 2.*m_T*np.cosh(y)/sqrt_s
+    m_T = np.sqrt(pT**2 + mass**2)
+    return 2.0 * m_T * np.cosh(y) / sqrt_s
+
+def get_zTilde(particles,electron):
+    mass = get_mass(particles)
+    pT_abs = particles[:,:,2]*electron[:,0,None]
+    rap_abs = particles[:,:,0]
+    z = pT_to_zTilde(pT_abs, rap_abs, mass)
+    z_ele = pT_to_zTilde(electron[:,0,None], electron[:,1,None],0.511e-5)
+    all_z = np.concatenate((z, z_ele), axis=-1)
+    sum_z = np.nansum(all_z,axis=-1)
+    return z, z_ele, sum_z
 
 def plot_results(jets, jets_gen, particles, particles_gen, flags):
     """ Plot the results using the utility functions. """
 
-    particles = get_abs_eta(particles, jets) #rel to abs eta, concats scattered e-
-    particles_gen = get_abs_eta(particles_gen, jets_gen)
+    ele_var_names = ['scattered e$^{-}$ $p_T$ [GeV]',
+                     'scattered e$^{-}$ $y$','Multiplicity']
 
-    particles, jets = get_z(particles,jets)
-    #particles, jets = get_z_mass(particles,jets)
-    particles_gen, jets_gen = get_z(particles_gen,jets_gen)
+    part_var_names = ['all $y_{rel}$',
+                      'all $\phi_{rel}$',
+                      'all $p_{Trel}$ [GeV]',
+                      'charge','is proton','is neutron','is kaon',
+                      'is pion', 'is neutrino',
+                      'is muon','is electron',
+                      'is photon', 'is K0L']
 
+    # Get Absolute Rapidity
+    abs_rapidity = get_abs_rap(particles, jets) #rel to abs rap
+    abs_rap_gen = get_abs_rap(particles_gen, jets_gen)
 
-    ele_var_names = ['scattered e$^{-}$ $\log_{10}$(z)',
-                     '$\sum_{i\in event} z_i$',
-                     'scattered e$^{-}$ $p_T$ [GeV]',
-                     'scattered e$^{-}$ $\eta$','Multiplicity']
+    #Get Mass
+    masses = get_mass(particles)
+    masses_gen = get_mass(particles_gen)
+
+    # Get zTilde (with Masses!!!!)
+    z, z_ele, zSum= get_zTilde(particles,jets)
+    z_gen, z_ele_gen, zSum_gen = get_zTilde(particles,jets)
+
+    #Pre-Pend new Quantities to datas structures
+    part_var_names.insert(0, r'all $y_{abs}$') #Abs. Rapidity
+    particles = np.concatenate([abs_rapidity[:,:,None], particles],-1)
+    particles_gen = np.concatenate([abs_rap_gen[:,:,None], particles_gen],-1)
+
+    part_var_names.insert(0, r'all $\tilde{z}$') # zTilde
+    ele_var_names.insert(0, r'$\sum_{i\in event} z_i$') # zTilde
+    ele_var_names.insert(0, r'scattered e$^{-}$ $\log_{10}$(z)') # zTilde
+                     
+    particles = np.concatenate([z[:,:,None], particles],-1)
+    jets = np.concatenate([z_ele, zSum[:,np.newaxis], jets],-1)
+    particles_gen = np.concatenate([z_gen[:,:,None], particles_gen],-1)
+    jets_gen = np.concatenate([z_ele_gen, zSum_gen[:,np.newaxis], jets_gen],-1)
+
+    part_var_names.append('all masses [GeV]')
+    particles = np.concatenate([particles, masses[:, :, np.newaxis]], axis=-1)
+    particles_gen = np.concatenate([particles_gen, masses_gen[:, :, np.newaxis]], axis=-1)
 
     plot(jets, jets_gen, title='Electron',
          var_names=ele_var_names, plot_folder=flags.plot_folder)
@@ -224,13 +243,6 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     particles=particles[particles[:,4]!=0.]
     
     #Inclusive plots with all particles
-    part_var_names = ['all $\log_{10}$(z)','all $\eta_{abs}$',
-                      'all $\eta_{rel}$', 'all $\phi_{rel}$',
-                      'all $p_{Trel}$ [GeV]',
-                      'charge','is proton','is neutron','is kaon',
-                      'is pion', 'is neutrino',
-                      'is muon','is electron',
-                      'is photon', 'is pi0']
     
     plot(particles, particles_gen,title=f'Particle',
          var_names=part_var_names,plot_folder=flags.plot_folder)
@@ -239,7 +251,7 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     particle_names = ['p','n','K$^{+}$',
                       '$\pi^{+}$', 'neutrino',
                       '$\mu$', 'e$^{-}$',
-                      '$\gamma$', '$\pi^{0}$']
+                      '$\gamma$', '$K^{0}_L$']
 
 
 
@@ -254,8 +266,8 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
         particles_pid=particles_pid[particles_pid[:,4]!=0.]
 
         var_names = [f'{particle_names[pid]}' + ' $\log_{10}$(z)',
-                     f'{particle_names[pid]}' + ' $\eta_{abs}$',
-                     f'{particle_names[pid]}' + ' $\eta_{rel}$',
+                     f'{particle_names[pid]}' + ' $y_{abs}$',
+                     f'{particle_names[pid]}' + ' $y_{rel}$',
                      f'{particle_names[pid]}' + ' $\phi_{rel}$',
                      f'{particle_names[pid]}' + ' $p_{Trel}$ [GeV]']
 
@@ -276,7 +288,7 @@ def plot_results(jets, jets_gen, particles, particles_gen, flags):
     all_ele_gen[:,0] = np.concatenate((particles_gen[:,0][mask_electron_gen], jets_gen[:,0]))
     all_ele_gen[:,1] = np.concatenate((particles_gen[:,1][mask_electron_gen], jets_gen[:,-2]))
 
-    ele_vars = ["$\log_{10}$(z)",'$\eta_{abs}$']
+    ele_vars = ["$\log_{10}$(z)",'$y_{abs}$']
 
     plot(all_ele, all_ele_gen,title=f'All_Electrons',
          var_names=ele_vars, plot_folder=flags.plot_folder)
