@@ -19,7 +19,6 @@ def parse_arguments():
     parser.add_argument("--folder", type=str, default="/pscratch/sd/v/vmikuni/PET/", help="Folder containing input files")
     parser.add_argument("--batch", type=int, default=5000, help="Batch size")
     parser.add_argument("--load", action='store_true', help="Load pre-evaluated npy files")
-    parser.add_argument("--save-pred", action='store_true', help="Save the prediction values to a separate file")
     parser.add_argument("--mode", type=str, default="classifier", help="Loss type to train the model")
     parser.add_argument("--fine_tune", action='store_true', help="Fine tune a model")
     parser.add_argument("--nid", type=int, default=0, help="Training ID for multiple trainings")
@@ -180,12 +179,6 @@ def main():
 
     y, pred = load_or_evaluate_model(flags, test,folder_name)
 
-    if flags.save_pred:
-        add_text = 'fine_tune' if flags.fine_tune else 'baseline'
-        with h5py.File('{}_{}.h5'.format(flags.dataset,add_text), "w") as fh5:
-           dset = fh5.create_dataset('y', data=y)
-           dset = fh5.create_dataset('pred', data=pred)
-            
     # Evaluate results
     print_metrics(pred, y, thresholds, multi_label=multi_label)
 

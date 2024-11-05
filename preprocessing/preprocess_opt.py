@@ -58,9 +58,9 @@ def clustering_sum(data_top,data_qcd,folder,nparts=100,is_train = False):
 
     if is_train:    
         with h5py.File('{}/train_ttbar.h5'.format(folder,sample), "w") as fh5:
-            dset = fh5.create_dataset('data', data=points[:1_600_000,:nparts])
-            dset = fh5.create_dataset('jet', data=jets[:1_600_000])
-            dset = fh5.create_dataset('pid', data=npid[:1_600_000])
+            dset = fh5.create_dataset('data', data=points[:,:nparts])
+            dset = fh5.create_dataset('jet', data=jets[:])
+            dset = fh5.create_dataset('pid', data=npid[:])
 
 
         with h5py.File('{}/val_ttbar.h5'.format(folder), "w") as fh5:
@@ -78,9 +78,9 @@ def clustering_sum(data_top,data_qcd,folder,nparts=100,is_train = False):
 
 if __name__=='__main__':
     parser = OptionParser(usage="%prog [opt]  inputFiles")
-    parser.add_option("--npoints", type=int, default=128, help="Number of particles per event")
-    parser.add_option("--folder", type="string", default='/pscratch/sd/v/vmikuni/PET/Opt/top/raw', help="Folder containing input files")
-    parser.add_option("--sample", type="string", default='train_nsamples1M_trunc_5000.h5', help="Input file name")
+    parser.add_option("--npoints", type=int, default=128, help="Number of partbicles per event")
+    parser.add_option("--folder", type="string", default='/pscratch/sd/v/vmikuni/PET/Opt/OptimalClassifierSamplesSameBinGen/top/raw', help="Folder containing input files")
+    parser.add_option("--sample", type="string", default='train_nsamples1000000_trunc_5000_nonan.h5', help="Input file name")
 
     (flags, args) = parser.parse_args()
         

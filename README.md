@@ -24,9 +24,11 @@ Our **recommendation** is to use the docker container.
 
 # Data
 
+Use the flag ```--folder''' with the path of the downloaded data to  preprocess each file. See below for specific file instructions.
+
 ## JetClass
 
-OmniLearn is trained using the [JetClass](https://zenodo.org/records/6619768) dataset. All files can be directly download from zenodo or downloaded using the dataloader scripts provided by the authors from the original [repository](https://github.com/jet-universe/particle_transformer/blob/main/get_datasets.py). After the files are downloaded to the folder FOLDER you can preprocess them to save new clean files in the desired format using:
+OmniLearn is trained using the [JetClass](https://zenodo.org/records/6619768) dataset. All files can be directly download from zenodo or downloaded using the dataloader scripts provided by the authors from the original [repository](https://github.com/jet-universe/particle_transformer/blob/main/get_datasets.py). 
 
 ```bash
 cd preprocessing
@@ -120,7 +122,7 @@ Since the training dataset is large, this step may take hours or days depending 
 
 # Adapting OmniLearn to new datasets
 
-We provide the scripts used in the paper to adapt OmniLearn to each individual task we present with evaluation scripts to derive the results shown in the paper. Notice that training any algorithm from scratch can also be accomplished by omitting the ```--fine_tune``` flag.
+We provide the scripts used in the paper to adapt OmniLearn to each individual task we present with evaluation scripts to derive the results shown in the paper. Notice that training any algorithm from scratch can also be accomplished by omitting the ```--fine_tune``` flag. We provide the trained checkpoints from OmniLearn in the checkpoint folder. Copy the checkpoint folder to the dataset folder before running the fine tunning step.
 
 ## Top Tagging, Quark and Gluon, CMS Open Data, DIS Classification datasets
 

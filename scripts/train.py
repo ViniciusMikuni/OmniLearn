@@ -47,7 +47,7 @@ def get_data_loader(flags):
         val = utils.TopDataLoader(os.path.join(flags.folder,'TOP', 'val_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
     if flags.dataset == 'opt':
         train = utils.TopDataLoader(os.path.join(flags.folder,'Opt', 'train_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
-        val = utils.TopDataLoader(os.path.join(flags.folder,'Opt', 'val_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
+        val = utils.TopDataLoader(os.path.join(flags.folder,'Opt', 'test_ttbar.h5'),flags.batch,hvd.rank(),hvd.size())
     if flags.dataset == 'toy':
         train = utils.ToyDataLoader(100000//hvd.size(),flags.batch,hvd.rank(),hvd.size())
         val = utils.ToyDataLoader(100000//hvd.size(),flags.batch,hvd.rank(),hvd.size())
@@ -142,6 +142,8 @@ def main():
                       verbose=hvd.rank() == 0,
                       )
     if hvd.rank() ==0:
+        if not os.path.exists(os.path.join(flags.folder,'histories')):
+            os.makedirs(os.path.join(flags.folder,'histories'))
         with open(os.path.join(flags.folder,'histories',utils.get_model_name(flags,flags.fine_tune).replace(".weights.h5",".pkl")),"wb") as f:
             pickle.dump(hist.history, f)
                             
