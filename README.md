@@ -1,4 +1,8 @@
 # Official Repository for the OmniLearn paper
+
+[![DOI](https://zenodo.org/badge/781023830.svg)](https://doi.org/10.5281/zenodo.14977180)
+
+
 ![Model Architecture](./assets/PET_arch.png)
 
 This is the official repository used in the paper OmniLearn: A Method to Simultaneously Facilitate All Jet Physics Tasks. If you find this repository useful for your own work please cite the paper:
